@@ -52,7 +52,7 @@ func HandoffSupported(cliVersion string) bool {
 	if d == "" {
 		return false
 	}
-	if devDescribeRe.MatchString(d) {
+	if d == "dev" || devDescribeRe.MatchString(d) {
 		return true
 	}
 	parsed, err := parseSemver(d)
@@ -86,9 +86,9 @@ var devDescribeRe = regexp.MustCompile(`^v?\d+\.\d+\.\d+-\d+-g[0-9a-fA-F]+`)
 // when parsable but below the minimum. The caller can check for these
 // sentinel errors with errors.Is to drive the response shape.
 //
-// Dev-built daemons (git-describe shape) always pass — the version string
-// itself is the shared signal, so the modal pre-check and this server gate
-// agree by construction without needing to compare separate env flags.
+// Dev-built daemons (`dev` or git-describe shape) always pass — the version
+// string itself is the shared signal, so the modal pre-check and this server
+// gate agree by construction without needing to compare separate env flags.
 func CheckMinCLIVersion(detected string) error {
 	return CheckMinCLIVersionFor(detected, MinQuickCreateCLIVersion)
 }
@@ -101,7 +101,7 @@ func CheckMinCLIVersionFor(detected, minimum string) error {
 	if d == "" {
 		return ErrCLIVersionMissing
 	}
-	if devDescribeRe.MatchString(d) {
+	if d == "dev" || devDescribeRe.MatchString(d) {
 		return nil
 	}
 	parsed, err := parseSemver(d)

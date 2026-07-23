@@ -64,6 +64,7 @@ func TestCheckMinCLIVersion(t *testing.T) {
 		{"tagged release below minimum", "v0.2.15", ErrCLIVersionTooOld},
 		{"empty string", "", ErrCLIVersionMissing},
 		{"unparsable", "not-a-version", ErrCLIVersionMissing},
+		{"unstamped dev build", "dev", nil},
 		{"git-describe dev build past old tag", "v0.2.15-235-gdaf0e935", nil},
 		{"git-describe dirty dev build", "v0.2.15-235-gdaf0e935-dirty", nil},
 		{"git-describe dev build past current tag", "v0.2.21-3-gabc1234", nil},
@@ -85,6 +86,9 @@ func TestCheckMinCLIVersionForQuickCreateFields(t *testing.T) {
 	}
 	if err := CheckMinCLIVersionFor("0.4.3", MinQuickCreateFieldsCLIVersion); err != nil {
 		t.Fatalf("0.4.3 error = %v, want nil", err)
+	}
+	if err := CheckMinCLIVersionFor("dev", MinQuickCreateFieldsCLIVersion); err != nil {
+		t.Fatalf("dev error = %v, want nil", err)
 	}
 	if err := CheckMinCLIVersionFor("v0.4.2-7-gabc1234", MinQuickCreateFieldsCLIVersion); err != nil {
 		t.Fatalf("dev build error = %v, want nil", err)

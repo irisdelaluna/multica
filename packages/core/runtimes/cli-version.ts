@@ -28,9 +28,9 @@ const SEMVER_RE = /v?(\d+)\.(\d+)\.(\d+)/;
 // Matches the `git describe --tags --always --dirty` output for a build past
 // the latest tag, e.g. `v0.2.15-235-gdaf0e935` or `v0.2.15-235-gdaf0e935-dirty`.
 // Daemons built from source (Makefile `make build` / `make daemon`) report this
-// shape; tagged releases are bare semver. Treating dev-described daemons as OK
-// is what keeps `pnpm dev:desktop` + `make daemon` unblocked without weakening
-// the gate for staging or production users running stale stable releases.
+// shape; unstamped builds report `dev`, and tagged releases are bare semver.
+// Treating source-built daemons as OK keeps local development unblocked without
+// weakening the gate for staging or production users running stale releases.
 const DEV_DESCRIBE_RE = /^v?\d+\.\d+\.\d+-\d+-g[0-9a-fA-F]+/;
 
 function parseSemver(raw: string): [number, number, number] | null {
@@ -49,8 +49,8 @@ function lessThan(a: [number, number, number], b: [number, number, number]) {
  * Check a daemon-reported CLI version string against the minimum. Returns
  * `"missing"` for empty/unparsable input (fail closed — same policy as the
  * server) and `"too_old"` for a parsable version below the threshold.
- * Dev-built daemons (git-describe shape) are always OK — the version string
- * itself is the shared signal, so frontend and server agree by construction.
+ * Dev-built daemons (`dev` or git-describe shape) are always OK — the version
+ * string itself is the shared signal, so frontend and server agree.
  */
 export function checkQuickCreateCliVersion(detected: string | undefined | null): CliVersionCheck {
   return checkCliVersion(detected, MIN_QUICK_CREATE_CLI_VERSION);
@@ -68,7 +68,7 @@ function checkCliVersion(
   minimum: string,
 ): CliVersionCheck {
   const current = (detected ?? "").trim();
-  if (DEV_DESCRIBE_RE.test(current)) {
+  if (current === "dev" || DEV_DESCRIBE_RE.test(current)) {
     return { state: "ok", current, min: minimum };
   }
   const parsed = current ? parseSemver(current) : null;
@@ -103,16 +103,16 @@ export const MIN_HANDOFF_CLI_VERSION = "0.3.28";
 /**
  * Whether a daemon-reported CLI version is new enough to render a handoff note.
  * Mirrors server `agent.HandoffSupported`: missing / unparsable / below-minimum
- * all degrade to `false`, and dev-built daemons (git-describe shape) always
- * pass — the version string is the shared signal, so frontend and server agree
- * by construction. Pure and synchronous, so the note box can settle from the
+ * all degrade to `false`, and dev-built daemons (`dev` or git-describe shape)
+ * always pass — the version string is the shared signal, so frontend and
+ * server agree. Pure and synchronous, so the note box can settle from the
  * already-warm runtime cache instead of waiting on the trigger-preview
  * round-trip, exactly like the quick-create version gate.
  */
 export function handoffSupported(detected: string | undefined | null): boolean {
   const current = (detected ?? "").trim();
   if (!current) return false;
-  if (DEV_DESCRIBE_RE.test(current)) return true;
+  if (current === "dev" || DEV_DESCRIBE_RE.test(current)) return true;
   const parsed = parseSemver(current);
   if (!parsed) return false;
   return !lessThan(parsed, parseSemver(MIN_HANDOFF_CLI_VERSION)!);

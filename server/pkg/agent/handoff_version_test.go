@@ -14,6 +14,7 @@ func TestHandoffSupported(t *testing.T) {
 		{"far below", "0.2.21", false},
 		{"empty (unreported)", "", false},
 		{"unparsable", "garbage", false},
+		{"unstamped dev build", "dev", true},
 		{"dev git-describe build", "v0.3.0-5-gabc1234", true},
 	}
 	for _, tc := range tests {

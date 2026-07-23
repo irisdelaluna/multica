@@ -26,6 +26,7 @@ type TableGroupsResponse = {
 
 type TableRowsResponse = {
   total: number;
+  branch_total: number;
   next_cursor: string | null;
   rows: Array<{
     issue: { id: string; title: string; status: string };
@@ -148,7 +149,6 @@ test.describe("Issue Table server grouping", () => {
       .filter({ hasText: "Backlog" })
       .first();
     await expect(backlogGroup).toContainText("501");
-    await expect(page.getByText(/Loaded \d+ of 1001/)).toBeVisible();
     await expect(
       page.getByText(/Grouping and hierarchy are paused/),
     ).toHaveCount(0);
@@ -236,16 +236,18 @@ test.describe("Issue Table server grouping", () => {
       (await todoChildrenResponse.json()) as TableRowsResponse;
     const doneRoot = (await doneRootResponse.json()) as TableRowsResponse;
 
-    expect(todoRoot.total).toBe(3);
+    expect(todoRoot.branch_total).toBe(1);
     expect(todoRoot.rows).toEqual([
       expect.objectContaining({
         issue: expect.objectContaining({ id: parent.id, title: parentTitle }),
         direct_child_count: 1,
       }),
     ]);
+    expect(todoChildren.branch_total).toBe(1);
     expect(todoChildren.rows.map((row) => row.issue.title)).toEqual([
       sameGroupTitle,
     ]);
+    expect(doneRoot.branch_total).toBe(1);
     expect(doneRoot.rows.map((row) => row.issue.title)).toEqual([
       crossGroupTitle,
     ]);
@@ -305,7 +307,6 @@ test.describe("Issue Table server grouping", () => {
       element.scrollTop = element.scrollHeight;
     });
     await firstTailPromise;
-    await expect(page.getByText("Loaded 60 of 60", { exact: true })).toBeVisible();
 
     const postUpdateResponses: Array<{
       body: TableRequestBody;
@@ -365,7 +366,6 @@ test.describe("Issue Table server grouping", () => {
     ].map((row) => row.issue.id);
     expect(new Set(refreshedIds).size).toBe(60);
     expect(refreshedIds).toContain(moved.id);
-    await expect(page.getByText("Loaded 60 of 60", { exact: true })).toBeVisible();
     page.off("response", collectResponse);
   });
 

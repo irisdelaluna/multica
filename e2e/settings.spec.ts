@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { loginAsDefault, waitForPageText } from "./helpers";
+import {
+  enableFeatureFlag,
+  loginAsDefault,
+  waitForPageText,
+} from "./helpers";
 
 test.describe("Settings", () => {
   test("updating workspace name reflects in sidebar immediately", async ({
@@ -22,8 +26,8 @@ test.describe("Settings", () => {
     const newName = "Renamed WS " + Date.now();
     await nameInput.fill(newName);
 
-    // Save
-    await page.locator("button", { hasText: "Save" }).click();
+    // Blurring flushes the auto-save immediately.
+    await nameInput.press("Tab");
 
     await expect(page.getByText("Workspace settings saved").first()).toBeVisible({ timeout: 5000 });
 
@@ -33,7 +37,7 @@ test.describe("Settings", () => {
     // Restore original name so other tests aren't affected
     await nameInput.clear();
     await nameInput.fill(originalName.trim());
-    await page.locator("button", { hasText: "Save" }).click();
+    await nameInput.press("Tab");
     await expect(page.getByText("Workspace settings saved").first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole("button", { name: new RegExp(originalName) }).first()).toBeVisible();
   });
@@ -51,6 +55,8 @@ test.describe("Settings", () => {
 
     // Stateful: connections is empty until the (mocked) connect flow lands.
     let connected = false;
+
+    await enableFeatureFlag(page, "composio_mcp_apps");
 
     await page.route("**/api/integrations/composio/toolkits", (route) =>
       route.fulfill({

@@ -237,6 +237,7 @@ func createTestRepoAt(t *testing.T, dir string) string {
 	} {
 		cmd := exec.Command("git", args...)
 		cmd.Env = append(os.Environ(),
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
 			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com",
 		)
@@ -955,6 +956,7 @@ func addEmptyCommit(t *testing.T, repoPath, message string) {
 	t.Helper()
 	cmd := exec.Command("git", "-C", repoPath, "commit", "--allow-empty", "-m", message)
 	cmd.Env = append(os.Environ(),
+		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
 		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com",
 	)
@@ -969,6 +971,7 @@ func runGitAuthored(t *testing.T, repoPath string, args ...string) {
 	full := append([]string{"-C", repoPath}, args...)
 	cmd := exec.Command("git", full...)
 	cmd.Env = append(os.Environ(),
+		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
 		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com",
 	)

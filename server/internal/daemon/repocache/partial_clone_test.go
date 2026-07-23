@@ -26,6 +26,7 @@ func createFilterableTestRepo(t *testing.T) string {
 		t.Helper()
 		cmd := exec.Command("git", args...)
 		cmd.Env = append(os.Environ(),
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
 			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
 			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com",
 		)

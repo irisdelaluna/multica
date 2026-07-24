@@ -5,7 +5,6 @@ import { Activity, AlertCircle, RefreshCw, Search, Cpu } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AgentTask, WorkspaceTimelineEntry } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
-import { useWorkspacePaths } from "@multica/core/paths";
 import { activityFeedOptions, activityFeedKeys } from "@multica/core/activity-feed/queries";
 import { agentListOptions } from "@multica/core/workspace/queries";
 import { projectListOptions } from "@multica/core/projects/queries";
@@ -30,7 +29,7 @@ import {
 } from "../../layout/collection-page";
 import { ActorAvatar } from "../../common/actor-avatar";
 import { TranscriptButton } from "../../common/task-transcript";
-import { AppLink } from "../../navigation";
+import { IssueMentionCard } from "../../issues/components/issue-mention-card";
 import { useT, useTimeAgo } from "../../i18n";
 import {
   activityDetail,
@@ -61,7 +60,6 @@ const TONE_CLASS: Record<string, string> = {
 export function ActivityPage() {
   const wsId = useWorkspaceId();
   const qc = useQueryClient();
-  const paths = useWorkspacePaths();
   const { t } = useT("activity");
   const timeAgo = useTimeAgo();
   const { getActorName } = useActorName();
@@ -276,9 +274,6 @@ export function ActivityPage() {
                 entry={entry}
                 actorName={getActorName(entry.actor_type, entry.actor_id)}
                 timeAgo={timeAgo}
-                issueHref={
-                  entry.issue_id ? paths.issueDetail(entry.issue_id) : null
-                }
               />
             ))}
           </ol>
@@ -320,21 +315,20 @@ interface SecondaryLine {
   header?: string;
 }
 
-function TimelineRow({
+export function TimelineRow({
   entry,
   actorName,
   timeAgo,
-  issueHref,
 }: {
   entry: WorkspaceTimelineEntry;
   actorName: string;
   timeAgo: (dateStr: string) => string;
-  issueHref: string | null;
 }) {
   const { t } = useT("activity");
   const isSystem = entry.actor_type === "system" || !entry.actor_id;
   const name = isSystem ? null : actorName || entry.agent_name || null;
   const detail = entry.kind === "activity" ? activityDetail(entry) : "";
+  const issueId = entry.issue_id ?? null;
 
   const task = entry.kind === "task" ? taskForTranscript(entry) : null;
   // Match the agent activity tab exactly: queued tasks have no messages yet,
@@ -368,22 +362,30 @@ function TimelineRow({
       secondary = { text: trigger, tone: "muted", header: t(($) => $.triggered_by) };
     }
   }
-  if (!secondary) {
-    const title = entry.issue_title?.trim();
-    if (title) secondary = { text: title, tone: "muted" };
-  }
+  // The issue title now lives in the mention chip on the primary line (below),
+  // so it no longer doubles as the secondary line. That also closes the real
+  // gap this page had: a task or comment row — whose secondary is the
+  // error/trigger/body — previously showed only the bare identifier and never
+  // the title.
 
-  // Every entry carrying an issue_id links to that issue — not just rows that
-  // also carry a human-readable identifier. When the identifier is absent fall
-  // back to a short-id label so the link is still legible.
-  const issueLink = issueHref ? (
-    <AppLink
-      href={issueHref}
-      className="font-medium text-foreground underline decoration-muted-foreground/30 underline-offset-4 hover:text-foreground"
-    >
-      {entry.issue_identifier ||
-        t(($) => $.issue_short_fallback, { prefix: (entry.issue_id ?? "").slice(0, 8) })}
-    </AppLink>
+  // Reuse the single source of truth for the issue-mention look
+  // (IssueMentionCard → IssueChip: status icon + identifier + title) so a row
+  // reads as the work it belongs to, not as a bare code, and stays visually
+  // consistent with how comments and rich content reference an issue. The
+  // entry already carries issue_identifier via the handler's LEFT JOIN; it is
+  // the chip's zero-latency fallback label, and the chip enriches with the
+  // title + current status from the cached issue query. IssueChip caps itself
+  // at max-w-full and truncates the title, so the row cannot push sideways —
+  // but ONLY if nothing wraps it in a flex container (that drops the cap); it
+  // renders inline here, exactly as in rich content.
+  const issueMention = issueId ? (
+    <IssueMentionCard
+      issueId={issueId}
+      fallbackLabel={
+        entry.issue_identifier ||
+        t(($) => $.issue_short_fallback, { prefix: issueId.slice(0, 8) })
+      }
+    />
   ) : null;
 
   return (
@@ -410,7 +412,7 @@ function TimelineRow({
           {entry.kind === "activity" ? (
             <>
               <span className="text-muted-foreground">{activityVerb(entry.action ?? "")}</span>{" "}
-              {issueLink}
+              {issueMention}
               {detail ? (
                 <Badge variant="secondary" className="ml-2 font-normal">
                   {detail}
@@ -420,7 +422,7 @@ function TimelineRow({
           ) : entry.kind === "comment" ? (
             <>
               <span className="text-muted-foreground">{t(($) => $.commented_on)}</span>{" "}
-              {issueLink}
+              {issueMention}
             </>
           ) : (
             <>
@@ -430,7 +432,7 @@ function TimelineRow({
               >
                 {taskStatusLabel(entry.status)}
               </Badge>{" "}
-              {issueLink}
+              {issueMention}
             </>
           )}
         </p>

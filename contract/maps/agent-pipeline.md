@@ -23,7 +23,7 @@ sequenceDiagram
 
     User->>API: Create/update issue with agent assignee
     API->>API: Validate assignee and WillEnqueueRun
-    Note over API: backlog parks the assignment;<br/>other eligible statuses enqueue
+    Note over API: backlog parks the assignment,<br/>other eligible statuses enqueue
     API->>Task: EnqueueTaskForIssue[WithHandoff]
     Task->>Task: Resolve attribution and build runtime MCP overlay
     Task->>DB: INSERT agent_task_queue(status=queued)
@@ -64,12 +64,12 @@ sequenceDiagram
     alt Provider completes
         Daemon->>Task: POST /tasks/{id}/complete
         Task->>DB: running -> completed
-        Task->>Task: Persist resume pointer; synthesize issue comment if needed
+        Task->>Task: Persist resume pointer, synthesize issue comment if needed
         Task->>Events: task:completed
     else Provider fails, times out, or returns a poisoned result
         Daemon->>Task: POST /tasks/{id}/fail
         Task->>DB: running -> failed
-        Task->>Task: Classify failure; optionally enqueue retry
+        Task->>Task: Classify failure, optionally enqueue retry
         Task->>Events: task:failed
     else Server-side cancellation is observed
         Daemon->>Daemon: Stop process and drain transcript

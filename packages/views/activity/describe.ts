@@ -1,4 +1,5 @@
 import type { WorkspaceTimelineEntry } from "@multica/core/types";
+import { isTaskMessageTaskId } from "@multica/core/chat/queries";
 
 // The workspace timeline renders a human-readable line per entry. These pure
 // helpers turn the server-owned action vocabulary (written by
@@ -133,4 +134,22 @@ export function taskStatusTone(status: string | undefined): TaskStatusTone {
 function str(d: Record<string, unknown>, key: string): string | undefined {
   const v = d[key];
   return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+// The server stamps a task entry's id as "task:<uuid>" (see
+// server/internal/handler/activity.go → workspaceTaskToEntry). The transcript
+// surface fetches /api/tasks/:id/messages with the bare agent-task UUID, so we
+// strip the kind prefix. Returns null for activity entries or anything that
+// isn't a bare UUID — callers use that to decide whether to mount the
+// transcript button. Lives here (not in the page) because it encodes a
+// cross-boundary contract with the Go handler and belongs with the other
+// unit-tested server-format decoders above.
+const TASK_ENTRY_ID_PREFIX = "task:";
+
+export function bareTaskId(entry: WorkspaceTimelineEntry): string | null {
+  if (entry.kind !== "task") return null;
+  const raw = entry.id.startsWith(TASK_ENTRY_ID_PREFIX)
+    ? entry.id.slice(TASK_ENTRY_ID_PREFIX.length)
+    : entry.id;
+  return isTaskMessageTaskId(raw) ? raw : null;
 }

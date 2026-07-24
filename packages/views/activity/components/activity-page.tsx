@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Activity, AlertCircle, RefreshCw, Search, Cpu } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { WorkspaceTimelineEntry } from "@multica/core/types";
+import type { AgentTask, WorkspaceTimelineEntry } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
 import { useWorkspacePaths } from "@multica/core/paths";
 import { activityFeedOptions, activityFeedKeys } from "@multica/core/activity-feed/queries";
@@ -16,6 +16,11 @@ import { Input } from "@multica/ui/components/ui/input";
 import { Skeleton } from "@multica/ui/components/ui/skeleton";
 import { Badge } from "@multica/ui/components/ui/badge";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@multica/ui/components/ui/tooltip";
+import {
   NativeSelect,
   NativeSelectOption,
 } from "@multica/ui/components/ui/native-select";
@@ -24,11 +29,13 @@ import {
   CollectionPageState,
 } from "../../layout/collection-page";
 import { ActorAvatar } from "../../common/actor-avatar";
+import { TranscriptButton } from "../../common/task-transcript";
 import { AppLink } from "../../navigation";
 import { useT, useTimeAgo } from "../../i18n";
 import {
   activityDetail,
   activityVerb,
+  bareTaskId,
   taskStatusLabel,
   taskStatusTone,
 } from "../describe";
@@ -234,7 +241,7 @@ export function ActivityPage() {
       </div>
 
       {/* Body */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
         {isLoading ? (
           <TimelineSkeleton />
         ) : isError ? (
@@ -265,7 +272,6 @@ export function ActivityPage() {
                 entry={entry}
                 actorName={getActorName(entry.actor_type, entry.actor_id)}
                 timeAgo={timeAgo}
-                taskLabel={t(($) => $.kind_task)}
                 issueHref={
                   entry.issue_id ? paths.issueDetail(entry.issue_id) : null
                 }
@@ -278,25 +284,98 @@ export function ActivityPage() {
   );
 }
 
+// Build the minimal AgentTask the transcript dialog needs from a timeline
+// entry. The dialog reads every optional field defensively (avatar/runtime
+// lookups, live timer, work-dir copy all no-op when the field is absent), so
+// only the id — which drives the messages fetch — and the fields we actually
+// have are filled in. This reuses the same transcript path as the agent
+// activity tab (no second transcript implementation).
+function taskForTranscript(entry: WorkspaceTimelineEntry): AgentTask | null {
+  const id = bareTaskId(entry);
+  if (!id) return null;
+  return {
+    id,
+    agent_id: entry.actor_id || "",
+    runtime_id: "",
+    issue_id: entry.issue_id ?? "",
+    status: (entry.status as AgentTask["status"]) ?? "completed",
+    priority: 0,
+    dispatched_at: null,
+    started_at: null,
+    completed_at: null,
+    result: null,
+    error: entry.error ?? null,
+    created_at: entry.created_at,
+  };
+}
+
+interface SecondaryLine {
+  text: string;
+  tone: "muted" | "destructive";
+  /** Optional small header rendered above the full value in the hover tooltip. */
+  header?: string;
+}
+
 function TimelineRow({
   entry,
   actorName,
   timeAgo,
-  taskLabel,
   issueHref,
 }: {
   entry: WorkspaceTimelineEntry;
   actorName: string;
   timeAgo: (dateStr: string) => string;
-  taskLabel: string;
   issueHref: string | null;
 }) {
+  const { t } = useT("activity");
   const isSystem = entry.actor_type === "system" || !entry.actor_id;
   const name = isSystem ? null : actorName || entry.agent_name || null;
   const detail = entry.kind === "activity" ? activityDetail(entry) : "";
 
+  const task = entry.kind === "task" ? taskForTranscript(entry) : null;
+  // Match the agent activity tab exactly: queued tasks have no messages yet,
+  // so the transcript button is hidden to avoid opening a guaranteed-empty
+  // dialog. Every other task status exposes the same transcript affordance.
+  const showTranscript = task !== null && entry.status !== "queued";
+  const isRunning = entry.status === "running";
+
+  // Secondary line: the one wide field most worth surfacing, kept on its own
+  // truncated line with the full value available on hover. This is what keeps
+  // the page from scrolling horizontally — the primary line holds only short
+  // tokens, so nothing wide stays inline-unconstrained (the old inline
+  // `truncate` spans applied white-space:nowrap without an effective width and
+  // ran long content — a whole multi-paragraph trigger_summary, a raw error —
+  // straight off the right edge).
+  let secondary: SecondaryLine | null = null;
+  if (entry.kind === "task") {
+    const err = entry.error?.trim();
+    const trigger = entry.trigger_summary?.trim();
+    if (err) {
+      secondary = { text: err, tone: "destructive", header: t(($) => $.error_label) };
+    } else if (trigger) {
+      secondary = { text: trigger, tone: "muted", header: t(($) => $.triggered_by) };
+    }
+  }
+  if (!secondary) {
+    const title = entry.issue_title?.trim();
+    if (title) secondary = { text: title, tone: "muted" };
+  }
+
+  // Every entry carrying an issue_id links to that issue — not just rows that
+  // also carry a human-readable identifier. When the identifier is absent fall
+  // back to a short-id label so the link is still legible.
+  const issueLink = issueHref ? (
+    <AppLink
+      href={issueHref}
+      className="font-medium text-foreground underline decoration-muted-foreground/30 underline-offset-4 hover:text-foreground"
+    >
+      {entry.issue_identifier ||
+        t(($) => $.issue_short_fallback, { prefix: (entry.issue_id ?? "").slice(0, 8) })}
+    </AppLink>
+  ) : null;
+
   return (
-    <li className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
+    <li className="group flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
       <div className="mt-0.5 shrink-0">
         {isSystem ? (
           <span className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -308,29 +387,18 @@ function TimelineRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="text-sm leading-6">
+        <p className="break-words text-sm leading-6">
           {name ? (
             <span className="font-medium">{name}</span>
           ) : (
-            <span className="text-muted-foreground">{entry.kind === "task" ? entry.agent_name ?? "Agent" : "Someone"}</span>
+            <span className="text-muted-foreground">
+              {entry.kind === "task" ? entry.agent_name ?? "Agent" : "Someone"}
+            </span>
           )}{" "}
           {entry.kind === "activity" ? (
             <>
               <span className="text-muted-foreground">{activityVerb(entry.action ?? "")}</span>{" "}
-              {issueHref && entry.issue_identifier ? (
-                <AppLink
-                  href={issueHref}
-                  className="font-medium text-foreground underline decoration-muted-foreground/30 underline-offset-4 hover:text-foreground"
-                >
-                  {entry.issue_identifier}
-                </AppLink>
-              ) : null}
-              {entry.issue_title ? (
-                <span className="truncate text-muted-foreground">
-                  {" "}
-                  &middot; {entry.issue_title}
-                </span>
-              ) : null}
+              {issueLink}
               {detail ? (
                 <Badge variant="secondary" className="ml-2 font-normal">
                   {detail}
@@ -345,43 +413,64 @@ function TimelineRow({
               >
                 {taskStatusLabel(entry.status)}
               </Badge>{" "}
-              {issueHref && entry.issue_identifier ? (
-                <AppLink
-                  href={issueHref}
-                  className="font-medium text-foreground underline decoration-muted-foreground/30 underline-offset-4 hover:text-foreground"
-                >
-                  {entry.issue_identifier}
-                </AppLink>
-              ) : null}
-              {entry.issue_title ? (
-                <span className="truncate text-muted-foreground">
-                  {" "}
-                  &middot; {entry.issue_title}
-                </span>
-              ) : null}
-              {entry.trigger_summary ? (
-                <span className="truncate text-muted-foreground">
-                  {" "}
-                  &mdash; {entry.trigger_summary}
-                </span>
-              ) : null}
-              {entry.error ? (
-                <span className="ml-1 truncate text-destructive">{entry.error}</span>
-              ) : null}
+              {issueLink}
             </>
           )}
         </p>
+
+        {secondary ? (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <p
+                  className={`mt-0.5 truncate text-xs ${
+                    secondary.tone === "destructive"
+                      ? "text-destructive"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {secondary.text}
+                </p>
+              }
+            />
+            <TooltipContent className="max-w-lg">
+              {secondary.header ? (
+                <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/80">
+                  {secondary.header}
+                </div>
+              ) : null}
+              <div className="mt-0.5 whitespace-pre-wrap break-words text-xs">
+                {secondary.text}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
       </div>
 
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <time className="font-mono text-xs tabular-nums text-muted-foreground/70">
-          {timeAgo(entry.created_at)}
-        </time>
-        {entry.kind === "task" ? (
-          <Badge variant="outline" className="font-normal">
-            {taskLabel}
-          </Badge>
+      <div className="flex shrink-0 items-start gap-2">
+        {showTranscript && task ? (
+          // Hover/focus-revealed action slot, mirroring the agent activity
+          // tab's TaskRow so the transcript affordance is reached the same way
+          // here and there. group-focus-within keeps it keyboard-reachable.
+          <div className="flex items-center gap-0.5 pt-0.5 opacity-0 transition-opacity duration-100 group-hover:opacity-100 group-focus-within:opacity-100">
+            <TranscriptButton
+              task={task}
+              agentName={entry.agent_name ?? t(($) => $.kind_task)}
+              isLive={isRunning}
+              title={t(($) => $.transcript_tooltip)}
+            />
+          </div>
         ) : null}
+        <div className="flex flex-col items-end gap-1">
+          <time className="font-mono text-xs tabular-nums text-muted-foreground/70">
+            {timeAgo(entry.created_at)}
+          </time>
+          {entry.kind === "task" ? (
+            <Badge variant="outline" className="font-normal">
+              {t(($) => $.kind_task)}
+            </Badge>
+          ) : null}
+        </div>
       </div>
     </li>
   );

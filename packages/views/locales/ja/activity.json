@@ -22,5 +22,9 @@
   "refresh": "更新",
   "kind_task": "タスク",
   "system_actor": "システム",
-  "issue": "イシュー"
+  "issue": "イシュー",
+  "transcript_tooltip": "トランスクリプトを表示",
+  "triggered_by": "トリガー",
+  "error_label": "エラー",
+  "issue_short_fallback": "イシュー {{prefix}}…"
 }

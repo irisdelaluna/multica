@@ -22,5 +22,9 @@
   "refresh": "새로고침",
   "kind_task": "작업",
   "system_actor": "시스템",
-  "issue": "이슈"
+  "issue": "이슈",
+  "transcript_tooltip": "트랜스크립트 보기",
+  "triggered_by": "트리거",
+  "error_label": "오류",
+  "issue_short_fallback": "이슈 {{prefix}}…"
 }

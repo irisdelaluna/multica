@@ -22,5 +22,9 @@
   "refresh": "Refresh",
   "kind_task": "task",
   "system_actor": "System",
-  "issue": "issue"
+  "issue": "issue",
+  "transcript_tooltip": "View transcript",
+  "triggered_by": "Triggered by",
+  "error_label": "Error",
+  "issue_short_fallback": "Issue {{prefix}}…"
 }

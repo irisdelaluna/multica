@@ -3,6 +3,7 @@ import type { WorkspaceTimelineEntry } from "@multica/core/types";
 import {
   activityDetail,
   activityVerb,
+  bareTaskId,
   humanizeAction,
   taskStatusLabel,
   taskStatusTone,
@@ -79,5 +80,50 @@ describe("describe task status", () => {
     expect(taskStatusTone("failed")).toBe("destructive");
     expect(taskStatusTone("running")).toBe("default");
     expect(taskStatusTone("queued")).toBe("secondary");
+  });
+});
+
+describe("bareTaskId", () => {
+  // The Go handler stamps task-entry ids as "task:<uuid>" (activity entries use
+  // a bare activity-log id). The transcript button needs the bare agent-task
+  // UUID to fetch /api/tasks/:id/messages, so a regression in this decoding
+  // would silently break every task row's transcript affordance.
+
+  const UUID = "11111111-2222-3333-4444-555555555555";
+
+  function taskEntry(id: string): WorkspaceTimelineEntry {
+    return {
+      kind: "task",
+      id,
+      created_at: "2026-01-01T00:00:00Z",
+      actor_type: "agent",
+      actor_id: "agent-1",
+      status: "completed",
+    };
+  }
+
+  it("strips the task: prefix and returns the bare UUID", () => {
+    expect(bareTaskId(taskEntry(`task:${UUID}`))).toBe(UUID);
+  });
+
+  it("accepts a bare UUID when the prefix is absent", () => {
+    expect(bareTaskId(taskEntry(UUID))).toBe(UUID);
+  });
+
+  it("returns null for non-task entries (activity log id is not a task id)", () => {
+    const activity: WorkspaceTimelineEntry = {
+      kind: "activity",
+      id: UUID,
+      created_at: "2026-01-01T00:00:00Z",
+      actor_type: "member",
+      actor_id: "u1",
+      action: "issue_created",
+    };
+    expect(bareTaskId(activity)).toBeNull();
+  });
+
+  it("returns null when the remaining id is not a valid UUID", () => {
+    expect(bareTaskId(taskEntry("task:not-a-uuid"))).toBeNull();
+    expect(bareTaskId(taskEntry("task:"))).toBeNull();
   });
 });

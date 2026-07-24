@@ -22,5 +22,9 @@
   "refresh": "刷新",
   "kind_task": "任务",
   "system_actor": "系统",
-  "issue": "issue"
+  "issue": "issue",
+  "transcript_tooltip": "查看记录",
+  "triggered_by": "触发原因",
+  "error_label": "错误",
+  "issue_short_fallback": "Issue {{prefix}}…"
 }

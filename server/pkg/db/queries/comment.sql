@@ -1,3 +1,24 @@
+-- name: ListWorkspaceComments :many
+-- Workspace-wide recent comments for the live event timeline (backfill). LEFT
+-- JOIN issue attaches project/identifier context so the timeline can filter by
+-- project and render issue links without a client-side lookup pass. Newest
+-- first, capped at $2 — same shape as ListWorkspaceActivities.
+--
+-- type = 'comment' restricts to conversational comments. The other comment
+-- types (status_change, progress_update, system) are UI log rows that are
+-- already represented in activity_log (e.g. a status_changed row); surfacing
+-- them again here would duplicate those events in the merged feed.
+SELECT
+  c.id, c.issue_id, c.author_type, c.author_id, c.content, c.type,
+  c.created_at, c.updated_at, c.parent_id, c.workspace_id,
+  c.resolved_at, c.resolved_by_type, c.resolved_by_id,
+  i.number AS issue_number, i.title AS issue_title, i.project_id
+FROM comment c
+LEFT JOIN issue i ON i.id = c.issue_id
+WHERE c.workspace_id = $1 AND c.type = 'comment'
+ORDER BY c.created_at DESC, c.id DESC
+LIMIT $2;
+
 -- name: ListCommentsForIssue :many
 -- All comments for an issue in chronological order, capped at $3 (DB safety
 -- net). Issue p99 is ~30 comments, max ever observed in prod is ~1.1k, so

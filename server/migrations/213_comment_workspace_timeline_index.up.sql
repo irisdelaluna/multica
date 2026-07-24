@@ -1,0 +1,29 @@
+-- Supporting keyset index for the workspace-wide timeline's comment source.
+--
+-- The activity timeline (ListWorkspaceTimeline) now merges comments as a third
+-- source alongside activity_log and agent_task_queue. Its comment query is
+--
+--   SELECT … FROM comment c
+--   LEFT JOIN issue i ON i.id = c.issue_id
+--   WHERE c.workspace_id = $1 AND c.type = 'comment'
+--   ORDER BY c.created_at DESC, c.id DESC
+--   LIMIT $2;
+--
+-- The pre-existing idx_comment_workspace (migration 135, single-column
+-- workspace_id) lets the planner filter to the workspace but still forces a
+-- Sort over every comment in it before the LIMIT can truncate. The comment
+-- table is the largest conversational table on prd (search-path migrations 135
+-- and 140 reference workspaces with 100k+ comments), so on a busy workspace
+-- that Sort is the dominant cost of the timeline's backfill.
+--
+-- This composite index lets Postgres serve the query as an index scan that
+-- yields the newest comments in (created_at DESC, id DESC) order directly, so
+-- the LIMIT 500 truncates the scan before any Sort — the same keyset pattern
+-- migration 068 applied to the per-issue comment/activity timelines.
+--
+-- CONCURRENTLY avoids blocking writes on the hot comment table while the index
+-- builds; this file must stay single-statement because Postgres rejects CREATE
+-- INDEX CONCURRENTLY inside a transaction or multi-command string (AGENTS.md
+-- hard rule).
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_comment_workspace_created_at
+    ON comment (workspace_id, created_at DESC, id DESC);

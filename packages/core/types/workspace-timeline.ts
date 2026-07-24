@@ -1,10 +1,12 @@
 // WorkspaceTimelineEntry: one row of the workspace-wide live event timeline.
 //
-// Unifies two existing audit streams into a single chronological feed:
+// Unifies three existing event streams into a single chronological feed:
 //   - activity_log (issue events, status/assignee changes, task completions,
 //     env reveals, squad evaluations, …) → kind "activity"
 //   - agent_task_queue (daemon task lifecycle: queued → running → completed)
 //     → kind "task"
+//   - comment (conversational activity: a comment posted on an issue)
+//     → kind "comment"
 //
 // This type is intentionally self-contained and separate from the issue-scoped
 // TimelineEntry (which is `activity | comment` and tied to one issue's
@@ -13,7 +15,7 @@
 // contract (IRI-36: "v2 swaps its feed to the firehose without changing the
 // view"). Mirrors the Go WorkspaceTimelineEntry in
 // server/internal/handler/activity.go.
-export type WorkspaceTimelineEntryKind = "activity" | "task";
+export type WorkspaceTimelineEntryKind = "activity" | "task" | "comment";
 
 export interface WorkspaceTimelineEntry {
   kind: WorkspaceTimelineEntryKind;
@@ -21,7 +23,8 @@ export interface WorkspaceTimelineEntry {
   created_at: string;
 
   // Common actor context. For activities this is the activity actor; for
-  // tasks the "actor" is the agent that ran the task.
+  // tasks the "actor" is the agent that ran the task; for comments it is the
+  // comment author.
   actor_type: string;
   actor_id: string;
 
@@ -42,4 +45,8 @@ export interface WorkspaceTimelineEntry {
   agent_avatar_url?: string;
   error?: string | null;
   trigger_summary?: string | null;
+
+  // Comment-only fields. The body is shipped in full; the row truncates it
+  // client-side (same truncate-in-flex pattern task trigger_summary uses).
+  content?: string;
 }

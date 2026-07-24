@@ -1228,6 +1228,89 @@ func (q *Queries) ListThreadCommentsForIssuePaged(ctx context.Context, arg ListT
 	return items, nil
 }
 
+const listWorkspaceComments = `-- name: ListWorkspaceComments :many
+SELECT
+  c.id, c.issue_id, c.author_type, c.author_id, c.content, c.type,
+  c.created_at, c.updated_at, c.parent_id, c.workspace_id,
+  c.resolved_at, c.resolved_by_type, c.resolved_by_id,
+  i.number AS issue_number, i.title AS issue_title, i.project_id
+FROM comment c
+LEFT JOIN issue i ON i.id = c.issue_id
+WHERE c.workspace_id = $1 AND c.type = 'comment'
+ORDER BY c.created_at DESC, c.id DESC
+LIMIT $2
+`
+
+type ListWorkspaceCommentsParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	Limit       int32       `json:"limit"`
+}
+
+type ListWorkspaceCommentsRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	IssueID        pgtype.UUID        `json:"issue_id"`
+	AuthorType     string             `json:"author_type"`
+	AuthorID       pgtype.UUID        `json:"author_id"`
+	Content        string             `json:"content"`
+	Type           string             `json:"type"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ParentID       pgtype.UUID        `json:"parent_id"`
+	WorkspaceID    pgtype.UUID        `json:"workspace_id"`
+	ResolvedAt     pgtype.Timestamptz `json:"resolved_at"`
+	ResolvedByType pgtype.Text        `json:"resolved_by_type"`
+	ResolvedByID   pgtype.UUID        `json:"resolved_by_id"`
+	IssueNumber    pgtype.Int4        `json:"issue_number"`
+	IssueTitle     pgtype.Text        `json:"issue_title"`
+	ProjectID      pgtype.UUID        `json:"project_id"`
+}
+
+// Workspace-wide recent comments for the live event timeline (backfill). LEFT
+// JOIN issue attaches project/identifier context so the timeline can filter by
+// project and render issue links without a client-side lookup pass. Newest
+// first, capped at $2 — same shape as ListWorkspaceActivities.
+//
+// type = 'comment' restricts to conversational comments. The other comment
+// types (status_change, progress_update, system) are UI log rows that are
+// already represented in activity_log (e.g. a status_changed row); surfacing
+// them again here would duplicate those events in the merged feed.
+func (q *Queries) ListWorkspaceComments(ctx context.Context, arg ListWorkspaceCommentsParams) ([]ListWorkspaceCommentsRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceComments, arg.WorkspaceID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkspaceCommentsRow{}
+	for rows.Next() {
+		var i ListWorkspaceCommentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.IssueID,
+			&i.AuthorType,
+			&i.AuthorID,
+			&i.Content,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ParentID,
+			&i.WorkspaceID,
+			&i.ResolvedAt,
+			&i.ResolvedByType,
+			&i.ResolvedByID,
+			&i.IssueNumber,
+			&i.IssueTitle,
+			&i.ProjectID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const resolveComment = `-- name: ResolveComment :one
 UPDATE comment SET
     resolved_at = COALESCE(resolved_at, now()),

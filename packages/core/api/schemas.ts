@@ -306,9 +306,10 @@ export const TimelineEntriesSchema = z.array(TimelineEntrySchema);
 export const EMPTY_TIMELINE_ENTRIES: TimelineEntry[] = [];
 
 // Workspace-wide live event timeline. Unifies activity_log rows (kind
-// "activity") with agent task runs (kind "task"). Self-contained — separate
-// from TimelineEntriesSchema — so this feed can be re-pointed at the future
-// event firehose without touching the issue-timeline contract. See
+// "activity"), agent task runs (kind "task"), and comments (kind "comment")
+// into a single chronological feed. Self-contained — separate from
+// TimelineEntriesSchema — so this feed can be re-pointed at the future event
+// firehose without touching the issue-timeline contract. See
 // WorkspaceTimelineEntry (packages/core/types/workspace-timeline.ts).
 const WorkspaceTimelineEntrySchema = z.object({
   kind: z.string(),
@@ -327,6 +328,7 @@ const WorkspaceTimelineEntrySchema = z.object({
   agent_avatar_url: z.string().optional(),
   error: z.string().nullable().optional(),
   trigger_summary: z.string().nullable().optional(),
+  content: z.string().optional(),
 }).loose();
 
 export const WorkspaceTimelineEntriesSchema = z.array(WorkspaceTimelineEntrySchema);

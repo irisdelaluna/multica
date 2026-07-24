@@ -17,14 +17,26 @@
 --
 -- 'Timestamp' retains the exact wire text alongside the parsed 'UTCTime'.
 -- Parsing to 'UTCTime' alone would discard the offset the server sent, so
--- re-rendering would not be the identity. Keeping both makes equality
--- syntactic and ordering chronological, which are the two things callers
--- actually want, without pretending the conversion was lossless.
+-- re-rendering would not be the identity. Keeping both makes 'Timestamp' a
+-- faithful mirror of the wire value: 'parseTimestamp' is injective,
+-- 'timestampText' retracts it, and the type is isomorphic to the set of
+-- RFC3339 texts the server can emit.
+--
+-- __Identity is the wire text, and ordering must refine it.__ Because parsing
+-- is deterministic, 'timestampUtc' is a function of 'timestampText', so
+-- equality on the two fields together is exactly equality of the bytes. An
+-- ordering that compared only the instant would then report 'EQ' for two
+-- values equality calls distinct — the same instant written at two offsets —
+-- and every ordered container would collapse a pair it was told to keep. So
+-- 'compare' is chronological first and falls back to the retained text, which
+-- makes @'compare' a b == 'EQ'@ and @a == b@ the same statement.
+-- 'ordRefinesEq' is provided so that can be tested rather than asserted.
 module Ubiquity.Time
   ( Timestamp
   , timestampUtc
   , timestampText
   , parseTimestamp
+  , ordRefinesEq
   , CalendarDate
   , calendarDay
   , calendarText
@@ -46,10 +58,23 @@ data Timestamp = Timestamp
   }
   deriving stock (Eq)
 
--- | Chronological, not lexicographic: two spellings of the same instant in
--- different offsets compare 'EQ' here but are not 'Eq'.
+-- | Chronological first, retained wire text as the tie-breaker.
+--
+-- The tie-breaker is not decoration: without it two spellings of one instant
+-- would compare 'EQ' while '==' called them distinct, and 'Data.Set.Set' or
+-- 'Data.Map.Map' would silently keep only one of them.
 instance Ord Timestamp where
-  compare a b = compare (timestampUtc a) (timestampUtc b)
+  compare a b =
+    compare (timestampUtc a) (timestampUtc b)
+      <> compare (timestampText a) (timestampText b)
+
+-- | The claimed law, as a testable predicate: 'compare' agrees with '=='.
+--
+-- Chronological ordering is still the primary sense — this says only that the
+-- order refines equality, not that the text participates in ranking values
+-- that denote different instants.
+ordRefinesEq :: Timestamp -> Timestamp -> Bool
+ordRefinesEq a b = (compare a b == EQ) == (a == b)
 
 instance Show Timestamp where
   show = T.unpack . timestampText

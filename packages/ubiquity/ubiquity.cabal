@@ -36,3 +36,19 @@ library
   default-language:   GHC2021
   default-extensions: DerivingStrategies
   ghc-options:        -Wall -Wcompat -Wincomplete-record-updates
+
+-- Law checks for the vocabulary this package claims. Depends on boot packages
+-- only: picking a test framework for the Haskell line is the VERIFY lane's
+-- call, not this package's.
+test-suite ubiquity-laws
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Main.hs
+  build-depends:
+      base        >=4.17 && <5
+    , containers  >=0.6  && <0.9
+    , text        >=2.0  && <2.2
+    , ubiquity
+  default-language:   GHC2021
+  default-extensions: DerivingStrategies
+  ghc-options:        -Wall -Wcompat -Wincomplete-record-updates

@@ -154,10 +154,22 @@ instance FromJSON IssueLabel where
 
 -- | An issue.
 --
--- Three numeric fields that are not identifiers: 'issueNumber' (composes with
--- the workspace prefix into 'issueIdentifier'), 'issuePosition' (board order,
--- and negative in practice), and 'issueStage' (nullable, and @null@ on the
--- large majority of live issues — its absence is ordinary, not exceptional).
+-- Three numeric fields that are not identifiers, and they do not share a
+-- numeric type: 'issueNumber' (integral; composes with the workspace prefix
+-- into 'issueIdentifier'), 'issueStage' (integral, nullable, and @null@ on the
+-- large majority of live issues — its absence is ordinary, not exceptional),
+-- and 'issuePosition'.
+--
+-- 'issuePosition' is 'Double', not 'Int', and the difference is structural
+-- rather than a matter of range. Board order is maintained by /fractional
+-- indexing/: to move a card between two neighbours the server writes the
+-- midpoint of their positions, so the column is @position FLOAT NOT NULL@
+-- (@001_init.up.sql:68@), @float64@ on the wire (@issue.go:47@) and
+-- @z.number()@ in the TS schema (@schemas.ts:487@). Values are commonly
+-- negative and commonly fractional — a live board yields @-1.5@ — because
+-- density between neighbours is exactly the property the scheme buys. An
+-- integral type here does not merely truncate; it denies the operation the
+-- field exists to support.
 data Issue = Issue
   { issueIdOf :: IssueId
   , issueWorkspaceId :: WorkspaceId
@@ -173,7 +185,7 @@ data Issue = Issue
   -- ^ Never optional. No 'Maybe'.
   , issueParent :: Maybe IssueId
   , issueProject :: Maybe (Id Project)
-  , issuePosition :: Int
+  , issuePosition :: Double
   , issueStage :: Maybe Int
   , issueStartDate :: Maybe CalendarDate
   , issueDueDate :: Maybe CalendarDate

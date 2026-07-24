@@ -521,11 +521,14 @@ func TestProjectsAndResourcesSkillCoversDurableContext(t *testing.T) {
 // TestMuninnMemorySkillCoversRecallRememberDiscipline pins the
 // multica-muninn-memory skill. Unlike the other contract skills it documents
 // an external MCP server (MuninnDB), so it fences its tools to the muninn MCP
-// server rather than the multica CLI. The eval anchors the four required
-// disciplines (vault 'multica'; recall at start; atomic remember at end;
-// evolve over forget+remember; link related) without over-pinning the exact
-// per-runtime MCP tool-name glob — the meaningful, stable contract is that the
-// fence targets the muninn server, finalized when the overlay injects it.
+// server rather than the multica CLI. The eval anchors the two-vault
+// architecture (personal vault read-write, shared vault read-only), the four
+// required disciplines (recall at start; atomic remember at end; evolve over
+// forget+remember; link related), and the personal-vault discipline (Quiet
+// Scribe is the sole writer to the shared vault; divergence between agents'
+// vaults is signal, not error) without over-pinning the exact per-runtime MCP
+// tool-name glob — the meaningful, stable contract is that the fence targets
+// the muninn server, finalized when the overlay injects it.
 func TestMuninnMemorySkillCoversRecallRememberDiscipline(t *testing.T) {
 	skill, ok := findSkill(t, "multica-muninn-memory")
 	if !ok {
@@ -544,12 +547,19 @@ func TestMuninnMemorySkillCoversRecallRememberDiscipline(t *testing.T) {
 	}
 
 	mustContain := []string{
-		"MuninnDB vault",
+		"MuninnDB",
 		"`multica`",
+		"multica-<agent-slug>",
+		"personal vault",
+		"Read-only",
+		"Quiet Scribe",
+		"never write",
+		"signal, not",
 		"muninn_where_left_off",
 		"muninn_recall",
 		"scoped",
-		"One concept per memory",
+		"One",
+		"concept per memory",
 		"muninn_remember",
 		"muninn_remember_batch",
 		"muninn_evolve",

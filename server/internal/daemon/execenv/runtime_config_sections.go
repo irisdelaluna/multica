@@ -113,6 +113,16 @@ func writeAgentIdentity(b *strings.Builder, ctx TaskContextForEnv) {
 	}
 }
 
+func writeMemory(b *strings.Builder, ctx TaskContextForEnv) {
+	b.WriteString("## Memory\n\n")
+	fmt.Fprintf(b, "If a Muninn memory tool is available, use your personal vault `multica-%s` (`multica-<agent-slug>`): recall from it before work and write durable outcomes after. Read the shared `multica` vault for organizational orientation only; do not write there. Your vault holds your own perspective — divergence from others is expected, not an error.\n\n", sanitizeName(ctx.AgentName))
+}
+
+func writeWorkingDirectory(b *strings.Builder) {
+	b.WriteString("## Working Directory\n\n")
+	b.WriteString("Your shell tool already runs in your task worktree and accepts a per-call working directory — do not prefix commands with `cd <absolute path> &&`. After checking out a repository, move once if needed, then set the tool's working directory to the repo and use relative paths.\n\n")
+}
+
 // writeRequestingUser emits the Requesting User block when the runtime
 // owner's profile description is non-empty. Sanitisation rules match the
 // legacy implementation; see runtime_config.go for the rationale.
@@ -621,6 +631,8 @@ func writeOutput(b *strings.Builder, kind taskKind, ctx TaskContextForEnv) {
 //	Section               | comment | assign | autopilot | quick_create | chat
 //	----------------------+---------+--------+-----------+--------------+------
 //	Available Commands    |   full  |  full  |   full    |   minimal    | full
+//	Memory                |    ✓    |   ✓    |     ✓     |      —       |  ✓
+//	Working Directory     |    ✓    |   ✓    |     ✓     |      —       |  ✓
 //	Comment Formatting    |    ✓    |   ✓    |     —     |      —       |  —
 //	Repositories          |    △    |   △    |     △     |      —       |  △
 //	Project Context       |    △    |   △    |     —     |      —       |  —
@@ -642,6 +654,10 @@ func buildMetaSkillContentSlim(provider string, ctx TaskContextForEnv) string {
 	writeHeader(&b)
 	writeBackgroundTaskSafetySlim(&b)
 	writeAgentIdentity(&b, ctx)
+	if kind != kindQuickCreate {
+		writeMemory(&b, ctx)
+		writeWorkingDirectory(&b)
+	}
 	writeSessionContinuityNotice(&b, ctx)
 	writeRequestingUser(&b, ctx)
 	writeTaskInitiator(&b, ctx)

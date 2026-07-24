@@ -98,10 +98,16 @@ func TestBuildMetaSkillContentSlimKindMatrix(t *testing.T) {
 	issueKinds := map[taskKind]bool{
 		kindCommentTriggered: true, kindAssignmentTriggered: true,
 	}
+	agentKinds := map[taskKind]bool{
+		kindCommentTriggered: true, kindAssignmentTriggered: true,
+		kindAutopilotRunOnly: true, kindChat: true,
+	}
 	checks := []sectionCheck{
 		{"# Multica Agent Runtime", allKinds},
 		{"## Background Task Safety", allKinds},
 		{"## Agent Identity", allKinds},
+		{"## Memory", agentKinds},
+		{"## Working Directory", agentKinds},
 		{"## Available Commands", allKinds},
 		{"### Workflow", allKinds},
 		{"## Important: Always Use the `multica` CLI", allKinds},
@@ -148,6 +154,42 @@ func TestBuildMetaSkillContentSlimKindMatrix(t *testing.T) {
 			if !want && present {
 				t.Errorf("kind=%d: heading %q should NOT be in slim brief (matrix gating regression)", kind, c.heading)
 			}
+		}
+	}
+}
+
+func TestRuntimeBriefMemoryAndWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
+	for _, ctx := range []TaskContextForEnv{
+		{IssueID: "i-1", AgentName: "Vulture Builder", AgentID: "agent-1"},
+		{ChatSessionID: "c-1", AgentName: "Vulture Builder", AgentID: "agent-1"},
+	} {
+		out := buildMetaSkillContent("codex", ctx)
+		for _, want := range []string{
+			"## Memory",
+			"`multica-vulture-builder` (`multica-<agent-slug>`)",
+			"recall from it before work and write durable outcomes after",
+			"shared `multica` vault for organizational orientation only; do not write there",
+			"divergence from others is expected, not an error",
+			"## Working Directory",
+			"already runs in your task worktree",
+			"accepts a per-call working directory",
+			"do not prefix commands with `cd <absolute path> &&`",
+			"set the tool's working directory to the repo and use relative paths",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("brief missing %q\n---\n%s", want, out)
+			}
+		}
+	}
+
+	out := buildMetaSkillContent("codex", TaskContextForEnv{
+		QuickCreatePrompt: "create an issue", AgentName: "Vulture Builder", AgentID: "agent-1",
+	})
+	for _, unwanted := range []string{"## Memory", "## Working Directory"} {
+		if strings.Contains(out, unwanted) {
+			t.Errorf("quick-create brief should not contain %q\n---\n%s", unwanted, out)
 		}
 	}
 }

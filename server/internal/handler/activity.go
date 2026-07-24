@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"sort"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -288,4 +289,175 @@ func (h *Handler) GetAssigneeFrequency(w http.ResponseWriter, r *http.Request) {
 	})
 
 	writeJSON(w, http.StatusOK, result)
+}
+
+// workspaceTimelineCap bounds the workspace-wide timeline payload. Sized as a
+// backfill window for the live event timeline (the view goes live over WS); it
+// is not a per-issue UX window like timelineHardCap.
+const workspaceTimelineCap = 500
+
+// WorkspaceTimelineEntry is one row of the workspace-wide live event timeline.
+// It unifies two existing audit streams — activity_log (issue events, status /
+// assignee changes, task completions, env reveals, squad evaluations, …) and
+// agent_task_queue (daemon task lifecycle) — into a single chronological feed.
+//
+// This is intentionally a self-contained response shape, separate from the
+// issue-scoped TimelineEntry (which is `activity | comment` and tied to one
+// issue's context). The workspace timeline owns its own entry type so the view
+// can be re-pointed at the future event firehose without disturbing the issue
+// timeline contract (IRI-36 / "v2 swaps its feed to the firehose without
+// changing the view").
+type WorkspaceTimelineEntry struct {
+	Kind      string `json:"kind"` // "activity" | "task"
+	ID        string `json:"id"`
+	CreatedAt string `json:"created_at"`
+
+	// Common actor context. For activities this is the activity actor; for
+	// tasks the "actor" is the agent that ran the task.
+	ActorType string `json:"actor_type"`
+	ActorID   string `json:"actor_id"`
+
+	// Issue context (present when the entry is tied to an issue). Identifier is
+	// the human-readable "<prefix>-<number>" form, built from the workspace
+	// issue prefix; empty for non-issue rows.
+	IssueID         string `json:"issue_id,omitempty"`
+	IssueIdentifier string `json:"issue_identifier,omitempty"`
+	IssueTitle      string `json:"issue_title,omitempty"`
+	ProjectID       string `json:"project_id,omitempty"`
+
+	// Activity-only fields.
+	Action  *string         `json:"action,omitempty"`
+	Details json.RawMessage `json:"details,omitempty"`
+
+	// Task-only fields.
+	Status         string  `json:"status,omitempty"`
+	AgentName      string  `json:"agent_name,omitempty"`
+	AgentAvatarURL string  `json:"agent_avatar_url,omitempty"`
+	Error          *string `json:"error,omitempty"`
+	TriggerSummary *string `json:"trigger_summary,omitempty"`
+}
+
+// ListWorkspaceTimeline returns the workspace-wide live event timeline: a
+// merged, newest-first feed of recent activity_log entries and agent task
+// runs. It is the backfill / reconnect-recovery source for the activity
+// timeline view; the view stays live by invalidating this cache on the WS
+// workspace event stream (activity:created, task:*, issue:*, comment:*),
+// which the server already fans out workspace-wide.
+//
+// This is a VIEW over existing event data, not new state: nothing is written,
+// and no client-side store mirrors the payload (React Query owns the cache).
+func (h *Handler) ListWorkspaceTimeline(w http.ResponseWriter, r *http.Request) {
+	workspaceID := h.resolveWorkspaceID(r)
+	if workspaceID == "" {
+		writeError(w, http.StatusBadRequest, "workspace_id is required")
+		return
+	}
+	wsUUID := parseUUID(workspaceID)
+	ctx := r.Context()
+
+	limit := int32(workspaceTimelineCap)
+	if q := r.URL.Query().Get("limit"); q != "" {
+		if n, err := strconv.Atoi(q); err == nil && n > 0 && n < int(workspaceTimelineCap) {
+			limit = int32(n)
+		}
+	}
+
+	prefix := h.getIssuePrefix(ctx, wsUUID)
+
+	activities, err := h.Queries.ListWorkspaceActivities(ctx, db.ListWorkspaceActivitiesParams{
+		WorkspaceID: wsUUID,
+		Limit:       limit,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list workspace activities")
+		return
+	}
+	tasks, err := h.Queries.ListWorkspaceTasksForWorkspace(ctx, db.ListWorkspaceTasksForWorkspaceParams{
+		WorkspaceID: wsUUID,
+		Limit:       limit,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list workspace tasks")
+		return
+	}
+
+	out := make([]WorkspaceTimelineEntry, 0, len(activities)+len(tasks))
+	for _, a := range activities {
+		out = append(out, workspaceActivityToEntry(a, prefix))
+	}
+	for _, t := range tasks {
+		out = append(out, workspaceTaskToEntry(t, prefix))
+	}
+	// Newest first; secondary key keeps a deterministic order on identical
+	// timestamps (ids are independent origins, so the tiebreak is cosmetic).
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt != out[j].CreatedAt {
+			return out[i].CreatedAt > out[j].CreatedAt
+		}
+		return out[i].ID > out[j].ID
+	})
+	if int32(len(out)) > limit {
+		out = out[:limit]
+	}
+
+	writeJSON(w, http.StatusOK, out)
+}
+
+func issueIdentifier(prefix string, number pgtype.Int4) string {
+	if !number.Valid || prefix == "" {
+		return ""
+	}
+	return prefix + "-" + strconv.Itoa(int(number.Int32))
+}
+
+func workspaceActivityToEntry(a db.ListWorkspaceActivitiesRow, prefix string) WorkspaceTimelineEntry {
+	action := a.Action
+	actorType := ""
+	if a.ActorType.Valid {
+		actorType = a.ActorType.String
+	}
+	e := WorkspaceTimelineEntry{
+		Kind:      "activity",
+		ID:        uuidToString(a.ID),
+		CreatedAt: timestampToString(a.CreatedAt),
+		ActorType: actorType,
+		ActorID:   uuidToString(a.ActorID),
+		Action:    &action,
+		Details:   a.Details,
+		IssueID:   uuidToString(a.IssueID),
+		ProjectID: uuidToString(a.ProjectID),
+	}
+	if ident := issueIdentifier(prefix, a.IssueNumber); ident != "" {
+		e.IssueIdentifier = ident
+	}
+	if a.IssueTitle.Valid {
+		e.IssueTitle = a.IssueTitle.String
+	}
+	return e
+}
+
+func workspaceTaskToEntry(t db.ListWorkspaceTasksForWorkspaceRow, prefix string) WorkspaceTimelineEntry {
+	e := WorkspaceTimelineEntry{
+		Kind:           "task",
+		ID:             "task:" + uuidToString(t.ID),
+		CreatedAt:      timestampToString(t.CreatedAt),
+		ActorType:      "agent",
+		ActorID:        uuidToString(t.AgentID),
+		Status:         t.Status,
+		AgentName:      t.AgentName,
+		Error:          textToPtr(t.Error),
+		TriggerSummary: textToPtr(t.TriggerSummary),
+		IssueID:        uuidToString(t.IssueID),
+		ProjectID:      uuidToString(t.ProjectID),
+	}
+	if t.AgentAvatarUrl.Valid {
+		e.AgentAvatarURL = t.AgentAvatarUrl.String
+	}
+	if ident := issueIdentifier(prefix, t.IssueNumber); ident != "" {
+		e.IssueIdentifier = ident
+	}
+	if t.IssueTitle.Valid {
+		e.IssueTitle = t.IssueTitle.String
+	}
+	return e
 }

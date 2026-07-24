@@ -78,6 +78,7 @@ import type {
   RuntimeLocalSkillImportRequest,
   TimelineEntry,
   AssigneeFrequencyEntry,
+  WorkspaceTimelineEntry,
   TaskMessagePayload,
   Attachment,
   ChatSession,
@@ -210,6 +211,7 @@ import {
   EMPTY_SQUAD_LIST,
   EMPTY_SQUAD_MEMBER_STATUS_LIST,
   EMPTY_TIMELINE_ENTRIES,
+  EMPTY_WORKSPACE_TIMELINE,
   EMPTY_USER,
   EMPTY_LIST_WEBHOOK_DELIVERIES_RESPONSE,
   EMPTY_WEBHOOK_DELIVERY,
@@ -239,6 +241,7 @@ import {
   SquadMemberStatusListResponseSchema,
   SubscribersListSchema,
   TimelineEntriesSchema,
+  WorkspaceTimelineEntriesSchema,
   UserSchema,
   WebhookDeliveryResponseSchema,
   BillingBalanceSchema,
@@ -957,6 +960,23 @@ export class ApiClient {
 
   async getAssigneeFrequency(): Promise<AssigneeFrequencyEntry[]> {
     return this.fetch("/api/assignee-frequency");
+  }
+
+  // Workspace-wide live event timeline: a merged, newest-first feed of recent
+  // activity_log entries (issue events, status/assignee changes, task
+  // completions, …) and agent task runs (daemon task lifecycle). This is the
+  // backfill / reconnect-recovery source for the activity timeline view; the
+  // view stays live over the WS workspace event stream. `limit` is clamped
+  // server-side (default 500).
+  async listWorkspaceTimeline(limit?: number): Promise<WorkspaceTimelineEntry[]> {
+    const qs = limit ? `?limit=${limit}` : "";
+    const raw = await this.fetch<unknown>(`/api/workspace-timeline${qs}`);
+    return parseWithFallback(
+      raw,
+      WorkspaceTimelineEntriesSchema,
+      EMPTY_WORKSPACE_TIMELINE,
+      { endpoint: "GET /api/workspace-timeline" },
+    );
   }
 
   async updateComment(commentId: string, content: string, attachmentIds?: string[], suppressAgentIds?: string[]): Promise<Comment> {

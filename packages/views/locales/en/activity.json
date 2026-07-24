@@ -1,0 +1,26 @@
+{
+  "title": "Activity",
+  "subtitle": "Live feed of events across the workspace and daemon.",
+  "filter": {
+    "all": "All",
+    "activities": "Activity",
+    "tasks": "Tasks",
+    "agent": "Agent",
+    "project": "Project",
+    "any_agent": "Any agent",
+    "any_project": "Any project",
+    "search": "Search events"
+  },
+  "state": {
+    "empty_title": "Nothing happening yet",
+    "empty_description": "Issue changes, comments, and agent task runs stream in here as they happen.",
+    "no_results": "No events match your filters.",
+    "error_title": "Couldn't load the activity feed",
+    "retry": "Retry"
+  },
+  "live": "Live",
+  "refresh": "Refresh",
+  "kind_task": "task",
+  "system_actor": "System",
+  "issue": "issue"
+}

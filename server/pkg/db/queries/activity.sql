@@ -6,6 +6,20 @@ WHERE issue_id = $1
 ORDER BY created_at ASC, id ASC
 LIMIT $2;
 
+-- name: ListWorkspaceActivities :many
+-- Workspace-wide recent activity for the live event timeline (backfill). The
+-- LEFT JOIN to issue attaches project/identifier context so the timeline can
+-- filter by project and render issue links without a client-side lookup pass.
+-- Newest first, capped at $2.
+SELECT
+  a.id, a.workspace_id, a.issue_id, a.actor_type, a.actor_id, a.action, a.details, a.created_at,
+  i.number AS issue_number, i.title AS issue_title, i.project_id
+FROM activity_log a
+LEFT JOIN issue i ON i.id = a.issue_id
+WHERE a.workspace_id = $1
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $2;
+
 -- name: GetActivity :one
 SELECT * FROM activity_log
 WHERE id = $1;

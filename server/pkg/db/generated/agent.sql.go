@@ -3997,6 +3997,80 @@ func (q *Queries) ListWorkspaceAgentTaskSnapshot(ctx context.Context, workspaceI
 	return items, nil
 }
 
+const listWorkspaceTasksForWorkspace = `-- name: ListWorkspaceTasksForWorkspace :many
+SELECT
+  q.id, q.agent_id, q.issue_id, q.status, q.created_at, q.started_at, q.completed_at, q.error, q.trigger_summary,
+  ag.name AS agent_name, ag.avatar_url AS agent_avatar_url,
+  i.number AS issue_number, i.title AS issue_title, i.project_id
+FROM agent_task_queue q
+JOIN agent ag ON ag.id = q.agent_id
+LEFT JOIN issue i ON i.id = q.issue_id
+WHERE ag.workspace_id = $1
+ORDER BY q.created_at DESC, q.id DESC
+LIMIT $2
+`
+
+type ListWorkspaceTasksForWorkspaceParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	Limit       int32       `json:"limit"`
+}
+
+type ListWorkspaceTasksForWorkspaceRow struct {
+	ID             pgtype.UUID        `json:"id"`
+	AgentID        pgtype.UUID        `json:"agent_id"`
+	IssueID        pgtype.UUID        `json:"issue_id"`
+	Status         string             `json:"status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	StartedAt      pgtype.Timestamptz `json:"started_at"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	Error          pgtype.Text        `json:"error"`
+	TriggerSummary pgtype.Text        `json:"trigger_summary"`
+	AgentName      string             `json:"agent_name"`
+	AgentAvatarUrl pgtype.Text        `json:"agent_avatar_url"`
+	IssueNumber    pgtype.Int4        `json:"issue_number"`
+	IssueTitle     pgtype.Text        `json:"issue_title"`
+	ProjectID      pgtype.UUID        `json:"project_id"`
+}
+
+// Workspace-wide recent task runs for the live event timeline (backfill).
+// Tasks carry no workspace_id column (workspace lives on the agent/issue),
+// so we scope through the agent. LEFT JOIN issue attaches project/identifier
+// context for filtering and issue links. Newest first, capped at $2.
+func (q *Queries) ListWorkspaceTasksForWorkspace(ctx context.Context, arg ListWorkspaceTasksForWorkspaceParams) ([]ListWorkspaceTasksForWorkspaceRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceTasksForWorkspace, arg.WorkspaceID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkspaceTasksForWorkspaceRow{}
+	for rows.Next() {
+		var i ListWorkspaceTasksForWorkspaceRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.AgentID,
+			&i.IssueID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.CompletedAt,
+			&i.Error,
+			&i.TriggerSummary,
+			&i.AgentName,
+			&i.AgentAvatarUrl,
+			&i.IssueNumber,
+			&i.IssueTitle,
+			&i.ProjectID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listWorkspaceWorkingAgents = `-- name: ListWorkspaceWorkingAgents :many
 SELECT
   a.id,

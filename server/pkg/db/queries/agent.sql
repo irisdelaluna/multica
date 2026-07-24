@@ -1351,6 +1351,22 @@ SELECT * FROM agent_task_queue
 WHERE issue_id = $1
 ORDER BY created_at DESC;
 
+-- name: ListWorkspaceTasksForWorkspace :many
+-- Workspace-wide recent task runs for the live event timeline (backfill).
+-- Tasks carry no workspace_id column (workspace lives on the agent/issue),
+-- so we scope through the agent. LEFT JOIN issue attaches project/identifier
+-- context for filtering and issue links. Newest first, capped at $2.
+SELECT
+  q.id, q.agent_id, q.issue_id, q.status, q.created_at, q.started_at, q.completed_at, q.error, q.trigger_summary,
+  ag.name AS agent_name, ag.avatar_url AS agent_avatar_url,
+  i.number AS issue_number, i.title AS issue_title, i.project_id
+FROM agent_task_queue q
+JOIN agent ag ON ag.id = q.agent_id
+LEFT JOIN issue i ON i.id = q.issue_id
+WHERE ag.workspace_id = $1
+ORDER BY q.created_at DESC, q.id DESC
+LIMIT $2;
+
 -- name: UpdateAgentStatus :one
 UPDATE agent SET status = $2, updated_at = now()
 WHERE id = $1

@@ -1202,6 +1202,45 @@ func newTestDaemon(t *testing.T) *Daemon {
 	}
 }
 
+type toolLimitBackend struct {
+	count int
+}
+
+func (b toolLimitBackend) Execute(ctx context.Context, _ string, _ agent.ExecOptions) (*agent.Session, error) {
+	messages := make(chan agent.Message, b.count)
+	result := make(chan agent.Result, 1)
+	for i := 0; i < b.count; i++ {
+		messages <- agent.Message{Type: agent.MessageToolUse, Tool: "test"}
+	}
+	go func() {
+		<-ctx.Done()
+		close(messages)
+		result <- agent.Result{Status: "aborted", Error: ctx.Err().Error()}
+		close(result)
+	}()
+	return &agent.Session{Messages: messages, Result: result}, nil
+}
+
+func TestExecuteAndDrainStopsAtToolCallLimit(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDaemon(t)
+	d.cfg.AgentMaxToolCalls = 3
+	result, tools, err := d.executeAndDrain(context.Background(), toolLimitBackend{count: 3}, "p", agent.ExecOptions{}, slog.Default(), "t-tool-limit", new(atomic.Int32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != "tool_limit" {
+		t.Fatalf("status = %q, want tool_limit", result.Status)
+	}
+	if tools != 3 {
+		t.Fatalf("tools = %d, want 3", tools)
+	}
+	if !strings.Contains(result.Error, "limit of 3 tool calls") {
+		t.Fatalf("unexpected error: %q", result.Error)
+	}
+}
+
 func newRepoReadyTestDaemon(t *testing.T, handler http.HandlerFunc) *Daemon {
 	t.Helper()
 	srv := httptest.NewServer(handler)

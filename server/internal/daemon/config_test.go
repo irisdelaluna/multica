@@ -34,6 +34,28 @@ func TestDefaultGCIntervalIsTwoHours(t *testing.T) {
 	}
 }
 
+func TestLoadConfigAgentMaxToolCalls(t *testing.T) {
+	stageFakeAgent(t)
+	t.Setenv("MULTICA_AGENT_MAX_TOOL_CALLS", "")
+
+	cfg, err := LoadConfig(Overrides{ServerURL: "http://localhost:8080", WorkspacesRoot: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AgentMaxToolCalls != 50 {
+		t.Fatalf("AgentMaxToolCalls = %d, want 50", cfg.AgentMaxToolCalls)
+	}
+
+	t.Setenv("MULTICA_AGENT_MAX_TOOL_CALLS", "0")
+	cfg, err = LoadConfig(Overrides{ServerURL: "http://localhost:8080", WorkspacesRoot: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.AgentMaxToolCalls != 0 {
+		t.Fatalf("AgentMaxToolCalls = %d, want disabled", cfg.AgentMaxToolCalls)
+	}
+}
+
 func TestPatternsFromEnv_DropsSeparatorBearingEntries(t *testing.T) {
 	t.Setenv("MULTICA_GC_ARTIFACT_PATTERNS", "node_modules, .next ,foo/bar, ../etc, ,target")
 	got := patternsFromEnv("MULTICA_GC_ARTIFACT_PATTERNS", nil)

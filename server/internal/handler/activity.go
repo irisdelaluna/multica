@@ -297,9 +297,10 @@ func (h *Handler) GetAssigneeFrequency(w http.ResponseWriter, r *http.Request) {
 const workspaceTimelineCap = 500
 
 // WorkspaceTimelineEntry is one row of the workspace-wide live event timeline.
-// It unifies two existing audit streams — activity_log (issue events, status /
-// assignee changes, task completions, env reveals, squad evaluations, …) and
-// agent_task_queue (daemon task lifecycle) — into a single chronological feed.
+// It unifies three existing event streams — activity_log (issue events, status /
+// assignee changes, task completions, env reveals, squad evaluations, …),
+// agent_task_queue (daemon task lifecycle), and comment (conversational
+// activity) — into a single chronological feed.
 //
 // This is intentionally a self-contained response shape, separate from the
 // issue-scoped TimelineEntry (which is `activity | comment` and tied to one
@@ -308,12 +309,13 @@ const workspaceTimelineCap = 500
 // timeline contract (IRI-36 / "v2 swaps its feed to the firehose without
 // changing the view").
 type WorkspaceTimelineEntry struct {
-	Kind      string `json:"kind"` // "activity" | "task"
+	Kind      string `json:"kind"` // "activity" | "task" | "comment"
 	ID        string `json:"id"`
 	CreatedAt string `json:"created_at"`
 
 	// Common actor context. For activities this is the activity actor; for
-	// tasks the "actor" is the agent that ran the task.
+	// tasks the "actor" is the agent that ran the task; for comments it is the
+	// comment author.
 	ActorType string `json:"actor_type"`
 	ActorID   string `json:"actor_id"`
 
@@ -335,11 +337,17 @@ type WorkspaceTimelineEntry struct {
 	AgentAvatarURL string  `json:"agent_avatar_url,omitempty"`
 	Error          *string `json:"error,omitempty"`
 	TriggerSummary *string `json:"trigger_summary,omitempty"`
+
+	// Comment-only fields. The body is shipped in full so the view can show it
+	// in a hover tooltip; the row itself truncates it client-side (the same
+	// truncate-in-flex pattern task trigger_summary already uses), which is what
+	// keeps the page from scrolling horizontally on long bodies.
+	Content *string `json:"content,omitempty"`
 }
 
 // ListWorkspaceTimeline returns the workspace-wide live event timeline: a
-// merged, newest-first feed of recent activity_log entries and agent task
-// runs. It is the backfill / reconnect-recovery source for the activity
+// merged, newest-first feed of recent activity_log entries, agent task runs,
+// and comments. It is the backfill / reconnect-recovery source for the activity
 // timeline view; the view stays live by invalidating this cache on the WS
 // workspace event stream (activity:created, task:*, issue:*, comment:*),
 // which the server already fans out workspace-wide.
@@ -380,13 +388,24 @@ func (h *Handler) ListWorkspaceTimeline(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusInternalServerError, "failed to list workspace tasks")
 		return
 	}
+	comments, err := h.Queries.ListWorkspaceComments(ctx, db.ListWorkspaceCommentsParams{
+		WorkspaceID: wsUUID,
+		Limit:       limit,
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to list workspace comments")
+		return
+	}
 
-	out := make([]WorkspaceTimelineEntry, 0, len(activities)+len(tasks))
+	out := make([]WorkspaceTimelineEntry, 0, len(activities)+len(tasks)+len(comments))
 	for _, a := range activities {
 		out = append(out, workspaceActivityToEntry(a, prefix))
 	}
 	for _, t := range tasks {
 		out = append(out, workspaceTaskToEntry(t, prefix))
+	}
+	for _, c := range comments {
+		out = append(out, workspaceCommentToEntry(c, prefix))
 	}
 	// Newest first; secondary key keeps a deterministic order on identical
 	// timestamps (ids are independent origins, so the tiebreak is cosmetic).
@@ -458,6 +477,27 @@ func workspaceTaskToEntry(t db.ListWorkspaceTasksForWorkspaceRow, prefix string)
 	}
 	if t.IssueTitle.Valid {
 		e.IssueTitle = t.IssueTitle.String
+	}
+	return e
+}
+
+func workspaceCommentToEntry(c db.ListWorkspaceCommentsRow, prefix string) WorkspaceTimelineEntry {
+	content := c.Content
+	e := WorkspaceTimelineEntry{
+		Kind:      "comment",
+		ID:        uuidToString(c.ID),
+		CreatedAt: timestampToString(c.CreatedAt),
+		ActorType: c.AuthorType,
+		ActorID:   uuidToString(c.AuthorID),
+		Content:   &content,
+		IssueID:   uuidToString(c.IssueID),
+		ProjectID: uuidToString(c.ProjectID),
+	}
+	if ident := issueIdentifier(prefix, c.IssueNumber); ident != "" {
+		e.IssueIdentifier = ident
+	}
+	if c.IssueTitle.Valid {
+		e.IssueTitle = c.IssueTitle.String
 	}
 	return e
 }

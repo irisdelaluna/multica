@@ -41,6 +41,7 @@ func createWorkspaceTimelineIssue(t *testing.T, title string) string {
 	json.NewDecoder(w.Body).Decode(&issue)
 	t.Cleanup(func() {
 		ctx := context.Background()
+		testPool.Exec(ctx, `DELETE FROM comment WHERE issue_id = $1`, issue.ID)
 		testPool.Exec(ctx, `DELETE FROM activity_log WHERE issue_id = $1`, issue.ID)
 		testPool.Exec(ctx, `DELETE FROM agent_task_queue WHERE issue_id = $1`, issue.ID)
 		testPool.Exec(ctx, `DELETE FROM issue WHERE id = $1`, issue.ID)
@@ -158,5 +159,105 @@ func TestListWorkspaceTimeline_AlwaysArray(t *testing.T) {
 	}
 	if entries == nil {
 		t.Fatalf("entries = nil, want non-nil array")
+	}
+}
+
+// TestListWorkspaceTimeline_IncludesComments verifies that conversational
+// comments surface in the timeline as a third source (alongside activity_log
+// and agent tasks), with the author as actor and the parent issue as subject.
+// A comment posted by a member is seeded newer than a status_changed activity
+// on the same issue so we can also assert newest-first ordering, and a
+// type='status_change' log row is seeded to confirm only conversational
+// comments (type 'comment') are merged — UI log rows are already represented
+// in activity_log and must not be duplicated.
+func TestListWorkspaceTimeline_IncludesComments(t *testing.T) {
+	if testHandler == nil {
+		t.Skip("database not available")
+	}
+	ctx := context.Background()
+	issueID := createWorkspaceTimelineIssue(t, "Workspace timeline comment test")
+
+	// Older activity row.
+	older := time.Now().UTC().Add(-2 * time.Minute)
+	var activityID string
+	if err := testPool.QueryRow(ctx, `
+		INSERT INTO activity_log (workspace_id, issue_id, actor_type, actor_id, action, details, created_at)
+		VALUES ($1, $2, 'member', $3, 'status_changed', '{"from":"todo","to":"in_progress"}'::jsonb, $4)
+		RETURNING id
+	`, testWorkspaceID, issueID, testUserID, older).Scan(&activityID); err != nil {
+		t.Fatalf("seed activity: %v", err)
+	}
+
+	// Newer conversational comment.
+	newer := time.Now().UTC()
+	body := "This is a timeline comment body."
+	var commentID string
+	if err := testPool.QueryRow(ctx, `
+		INSERT INTO comment (issue_id, workspace_id, author_type, author_id, content, type, created_at)
+		VALUES ($1, $2, 'member', $3, $4, 'comment', $5)
+		RETURNING id
+	`, issueID, testWorkspaceID, testUserID, body, newer).Scan(&commentID); err != nil {
+		t.Fatalf("seed comment: %v", err)
+	}
+
+	// A type='status_change' log row must NOT be merged (already represented in
+	// activity_log). Seeded newest so it would sort to the top if the filter
+	// regressed.
+	var logRowID string
+	if err := testPool.QueryRow(ctx, `
+		INSERT INTO comment (issue_id, workspace_id, author_type, author_id, content, type, created_at)
+		VALUES ($1, $2, 'member', $3, 'status log', 'status_change', now())
+		RETURNING id
+	`, issueID, testWorkspaceID, testUserID).Scan(&logRowID); err != nil {
+		t.Fatalf("seed status_change comment: %v", err)
+	}
+
+	entries, status := fetchWorkspaceTimeline(t)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200", status)
+	}
+
+	var gotComment *WorkspaceTimelineEntry
+	var gotActivity *WorkspaceTimelineEntry
+	for i := range entries {
+		if entries[i].Kind == "comment" && entries[i].ID == commentID {
+			gotComment = &entries[i]
+		}
+		if entries[i].Kind == "activity" && entries[i].ID == activityID {
+			gotActivity = &entries[i]
+		}
+		// The status_change log row must never appear, under either kind.
+		if entries[i].ID == logRowID {
+			t.Errorf("type=status_change comment %s leaked into timeline; only type=comment is merged", logRowID)
+		}
+	}
+	if gotComment == nil {
+		t.Fatalf("seeded comment %s missing from timeline", commentID)
+	}
+
+	// Comment enrichment: author as actor, body carried, issue context linked.
+	if gotComment.ActorType != "member" || gotComment.ActorID != testUserID {
+		t.Errorf("comment actor = %s/%s, want member/%s", gotComment.ActorType, gotComment.ActorID, testUserID)
+	}
+	if gotComment.Content == nil || *gotComment.Content != body {
+		t.Errorf("comment content = %v, want %q", gotComment.Content, body)
+	}
+	if gotComment.IssueID != issueID {
+		t.Errorf("comment issue_id = %s, want %s", gotComment.IssueID, issueID)
+	}
+	if gotComment.IssueIdentifier == "" {
+		t.Errorf("comment issue_identifier empty; want <prefix>-<number>")
+	}
+
+	// Newest-first: the comment (newer) must precede the activity (older).
+	if gotActivity != nil {
+		for i := range entries {
+			if entries[i].ID == gotComment.ID {
+				break
+			}
+			if entries[i].ID == gotActivity.ID {
+				t.Fatalf("activity appears before comment; feed must be newest-first")
+			}
+		}
 	}
 }

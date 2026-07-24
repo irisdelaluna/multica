@@ -40,7 +40,7 @@ import {
   taskStatusTone,
 } from "../describe";
 
-type KindFilter = "all" | "activity" | "task";
+type KindFilter = "all" | "activity" | "task" | "comment";
 
 const TONE_CLASS: Record<string, string> = {
   success: "text-success",
@@ -106,6 +106,7 @@ export function ActivityPage() {
   useWSEvent("issue:created", onEvent);
   useWSEvent("issue:updated", onEvent);
   useWSEvent("comment:created", onEvent);
+  useWSEvent("comment:updated", onEvent);
   useWSEvent("task:queued", onEvent);
   useWSEvent("task:dispatch", onEvent);
   useWSEvent("task:running", onEvent);
@@ -130,6 +131,7 @@ export function ActivityPage() {
           e.agent_name ?? "",
           e.trigger_summary ?? "",
           e.status ?? "",
+          e.content ?? "",
           getActorName(e.actor_type, e.actor_id),
         ]
           .join(" ")
@@ -180,7 +182,7 @@ export function ActivityPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 border-b px-5 py-2.5">
         <div className="flex items-center rounded-lg border p-0.5">
-          {(["all", "activity", "task"] as const).map((k) => (
+          {(["all", "activity", "comment", "task"] as const).map((k) => (
             <Button
               key={k}
               type="button"
@@ -193,7 +195,9 @@ export function ActivityPage() {
                 ? t(($) => $.filter.all)
                 : k === "activity"
                   ? t(($) => $.filter.activities)
-                  : t(($) => $.filter.tasks)}
+                  : k === "comment"
+                    ? t(($) => $.filter.comments)
+                    : t(($) => $.filter.tasks)}
             </Button>
           ))}
         </div>
@@ -347,6 +351,14 @@ function TimelineRow({
   // ran long content — a whole multi-paragraph trigger_summary, a raw error —
   // straight off the right edge).
   let secondary: SecondaryLine | null = null;
+  if (entry.kind === "comment") {
+    // Comment body is the most useful detail and can be long, so it rides on
+    // the same truncated secondary line task trigger_summary uses — the row
+    // stays one line and the full text is reachable on hover. This is what
+    // keeps a multi-paragraph body from pushing the page sideways.
+    const body = entry.content?.trim();
+    if (body) secondary = { text: body, tone: "muted" };
+  }
   if (entry.kind === "task") {
     const err = entry.error?.trim();
     const trigger = entry.trigger_summary?.trim();
@@ -404,6 +416,11 @@ function TimelineRow({
                   {detail}
                 </Badge>
               ) : null}
+            </>
+          ) : entry.kind === "comment" ? (
+            <>
+              <span className="text-muted-foreground">{t(($) => $.commented_on)}</span>{" "}
+              {issueLink}
             </>
           ) : (
             <>

@@ -1,0 +1,20 @@
+{
+  "name": "@multica/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record": "node recorder/record.ts",
+    "verify": "node conformance/verify.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@multica/core": "workspace:*",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@multica/tsconfig": "workspace:*",
+    "dotenv": "^17.2.4",
+    "typescript": "catalog:"
+  }
+}

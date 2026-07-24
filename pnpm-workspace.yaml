@@ -1,6 +1,7 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "contract"
 
 catalog:
   # Core React

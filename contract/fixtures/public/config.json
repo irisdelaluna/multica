@@ -1,0 +1,27 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/config",
+    "workspace": false
+  },
+  "schema": "ConfigSchema",
+  "response": {
+    "status": 200,
+    "body": {
+      "allow_signup": true,
+      "analytics_environment": "dev",
+      "cdn_domain": "localhost",
+      "daemon_app_url": "http://localhost:3000",
+      "daemon_server_url": "http://localhost:3000",
+      "feature_flags": {
+        "agents_agent_builder": true,
+        "agents_skill_toggles": true,
+        "composio_mcp_apps": false,
+        "settings_resource_labels": false
+      },
+      "posthog_host": "https://us.i.posthog.com",
+      "posthog_key": ""
+    }
+  },
+  "normalized": {}
+}

@@ -1,0 +1,40 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/issues/{issue}",
+    "workspace": true
+  },
+  "schema": "IssueSchema",
+  "response": {
+    "status": 200,
+    "body": {
+      "assignee_id": null,
+      "assignee_type": null,
+      "created_at": "<timestamp>",
+      "creator_id": "<uuid:1>",
+      "creator_type": "member",
+      "description": "Architecture principle for the Haskell line (Krzysztof, 2026-07-24): depart from the Data.* mixbag into DDD domains and bounded contexts, read as Kripke semantics meets sheaves. Naming: the DOMAIN IS THE ROOT namespace — no vendor prefix, no technical category (cf. Mosaic.Voronoi, Noise.Simplex, Discourse.Domain, Logic.Judgement); the second segment is a genuine notion within that world. For the fork: Board.*, Execution.*, Memory.*, possibly Discourse.* (comment/thread fabric). Concretely: (1) each bounded context is a world with its own local ontology — no shared God-types; (2) context overlaps are explicit restriction maps (anti-corruption translations) onto shared interface modules; (3) the sheaf condition is the consistency law — local views agreeing on overlaps glue into global sections; global truth is glued, never primitive; (4) accessibility (which world may refer into which) is explicit in the import/morphism structure; (5) the event firehose is the natural gluing site. Ubiquities (Ubiquity.*) = the constant sheaf: tiny frozen substrate in every world (ids, timestamps, workspace scoping, actor refs). Supporting/generic subdomains (auth, delivery, storage plumbing) serve core worlds without owning meaning. Guard: misfiling as ubiquitous is how God-types sneak back — default world-local until gluing forces promotion. First deliverable on the Haskell mark: derive the context/overlap diagram from Protocol's comprehension maps before cutting any package.",
+      "due_date": null,
+      "id": "<uuid:2>",
+      "identifier": "IRI-37",
+      "labels": [],
+      "metadata": {},
+      "number": 37,
+      "parent_issue_id": null,
+      "position": -30,
+      "priority": "none",
+      "project_id": "<uuid:3>",
+      "properties": {},
+      "stage": null,
+      "start_date": null,
+      "status": "backlog",
+      "title": "Bounded contexts as Kripke worlds, glued sheaf-wise",
+      "updated_at": "<timestamp>",
+      "workspace_id": "<uuid:4>"
+    }
+  },
+  "normalized": {
+    "timestamp": 2,
+    "uuid": 4
+  }
+}

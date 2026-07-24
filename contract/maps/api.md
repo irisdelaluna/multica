@@ -321,6 +321,28 @@
 - `AgentBuilderSessionSchema` - Builder sessions
 - `AgentTaskListSchema` - Task lists
 
+### 6.8 Ask an Expert
+
+| Endpoint | Method | Auth | Workspace | Schema | Description |
+|----------|--------|------|-----------|--------|-------------|
+| `/api/ask` | POST | session | required | ❌ | Consult an agent as an expert; returns its answer synchronously |
+
+Synchronous single inference call wearing an agent's identity (IRI-76). It is
+deliberately outside the task/queue family: no `agent_task_queue` row, no
+worktree, no transcript, and nothing persisted — the response body *is* the
+whole result. Request `{expert (agent UUID), question, context?}`; response
+`{expert_id, expert_name, answer, model, elapsed_ms}`.
+
+Latency is the contract, so failures are fast and typed rather than retried:
+`503` when no LLM layer is configured, `504` when the expert exceeds the
+server's 15s deadline, `502` on an upstream failure or empty completion. The
+model comes from `MULTICA_LLM_ASK_MODEL` (falling back to
+`MULTICA_LLM_DEFAULT_MODEL`) and is fixed server-side — the client cannot
+choose it. Membership in the expert's workspace is the only authorization gate;
+the agent invocation-permission gate does not apply because no run is started.
+No web/zod consumer: the caller is `multica ask <expert> <question>`, which
+resolves the expert name to a UUID client-side.
+
 ---
 
 ## 7. Skills

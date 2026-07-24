@@ -219,8 +219,14 @@ start: ## Start backend and frontend for the current checkout and run migrations
 stop: ## Stop backend and frontend processes for the current checkout
 	$(REQUIRE_ENV)
 	@echo "Stopping services..."
-	@-lsof -ti:$(PORT) | xargs kill -9 2>/dev/null
-	@-lsof -ti:$(FRONTEND_PORT) | xargs kill -9 2>/dev/null
+	# Kill only the process LISTENING on each port, not every process that has a
+	# socket there. The daemon holds long-lived client connections (WebSocket +
+	# HTTP) to the backend on $(PORT); an unfiltered `lsof -ti:$(PORT)` matches
+	# those established connections and collateral-kills the daemon, taking the
+	# whole agent fleet down whenever the dev stack is restarted (IRI-64).
+	# `-sTCP:LISTEN` restricts the match to the listener itself.
+	@-lsof -ti:$(PORT) -sTCP:LISTEN | xargs kill -9 2>/dev/null
+	@-lsof -ti:$(FRONTEND_PORT) -sTCP:LISTEN | xargs kill -9 2>/dev/null
 	@case "$(DATABASE_URL)" in \
 		""|*@localhost:*|*@localhost/*|*@127.0.0.1:*|*@127.0.0.1/*|*@\[::1\]:*|*@\[::1\]/*) \
 			echo "✓ App processes stopped. Shared PostgreSQL is still running on localhost:$(POSTGRES_PORT)." ;; \

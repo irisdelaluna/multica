@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -18,6 +19,48 @@ import (
 	"github.com/multica-ai/multica/server/internal/cli"
 	"github.com/multica-ai/multica/server/internal/daemon"
 )
+
+type namedSignal string
+
+func (s namedSignal) Signal()        {}
+func (s namedSignal) String() string { return string(s) }
+
+func TestShutdownContextReportsSignalCause(t *testing.T) {
+	signals := make(chan os.Signal, 1)
+	stopped := false
+	ctx, stop := newShutdownContext(context.Background(), signals, func() { stopped = true })
+
+	signals <- namedSignal("terminated")
+	<-ctx.Done()
+
+	if got := context.Cause(ctx); got == nil || got.Error() != "signal terminated" {
+		t.Fatalf("shutdown cause = %v, want signal terminated", got)
+	}
+	stop()
+	if !stopped {
+		t.Fatal("shutdown context did not stop signal delivery")
+	}
+}
+
+func TestRequestDaemonShutdownSendsReason(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reasons := make(chan string, 1)
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reasons <- r.Header.Get("X-Multica-Shutdown-Reason")
+	})}
+	go srv.Serve(ln)
+	t.Cleanup(func() { srv.Close() })
+
+	if err := requestDaemonShutdown(ln.Addr().(*net.TCPAddr).Port, "daemon stop command"); err != nil {
+		t.Fatal(err)
+	}
+	if got := <-reasons; got != "daemon stop command" {
+		t.Fatalf("shutdown reason = %q, want daemon stop command", got)
+	}
+}
 
 // TestDaemonAlive locks in the liveness predicate the lifecycle commands rely
 // on: both a ready ("running") and a still-booting ("starting") daemon count as

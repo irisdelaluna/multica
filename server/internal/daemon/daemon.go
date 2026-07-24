@@ -1090,6 +1090,9 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.ready.Store(true)
 	d.logger.Debug("background loops launched (workspace-sync, task-wakeup, heartbeat, gc, auto-update, token-renewal); health now reporting ready")
 	err = d.pollLoop(ctx, taskWakeups)
+	if cause := context.Cause(ctx); cause != nil {
+		d.logger.Info("daemon shutdown requested", "cause", cause)
+	}
 	d.logger.Debug("daemon main loop returning", "error", err)
 	return err
 }

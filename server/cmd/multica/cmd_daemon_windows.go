@@ -67,7 +67,9 @@ func isAccessDeniedSpawnErr(err error) bool {
 }
 
 func notifyShutdownContext(parent context.Context) (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(parent, os.Interrupt, sigBreak)
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, sigBreak)
+	return newShutdownContext(parent, signals, func() { signal.Stop(signals) })
 }
 
 // repointStdioToErrLog releases the daemon.log handle that an older self-update

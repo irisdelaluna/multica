@@ -518,6 +518,69 @@ func TestProjectsAndResourcesSkillCoversDurableContext(t *testing.T) {
 	}
 }
 
+// TestMuninnMemorySkillCoversRecallRememberDiscipline pins the
+// multica-muninn-memory skill. Unlike the other contract skills it documents
+// an external MCP server (MuninnDB), so it fences its tools to the muninn MCP
+// server rather than the multica CLI. The eval anchors the four required
+// disciplines (vault 'multica'; recall at start; atomic remember at end;
+// evolve over forget+remember; link related) without over-pinning the exact
+// per-runtime MCP tool-name glob — the meaningful, stable contract is that the
+// fence targets the muninn server, finalized when the overlay injects it.
+func TestMuninnMemorySkillCoversRecallRememberDiscipline(t *testing.T) {
+	skill, ok := findSkill(t, "multica-muninn-memory")
+	if !ok {
+		return
+	}
+	fm, body, _ := splitFrontmatter(skill.Content)
+
+	if got := strings.TrimSpace(fm["user-invocable"]); got != "false" {
+		t.Errorf("user-invocable = %q, want false (memory discipline triggers from context)", got)
+	}
+	// This is the first MCP-discipline skill: its tool fence targets the
+	// muninn MCP server, not Bash(multica *). Assert the stable server
+	// identity; the exact glob suffix is runtime-dependent.
+	if got := strings.TrimSpace(fm["allowed-tools"]); !strings.Contains(got, "mcp__muninn") {
+		t.Errorf("allowed-tools = %q, want the fence to target the muninn MCP server (mcp__muninn)", got)
+	}
+
+	mustContain := []string{
+		"MuninnDB vault",
+		"`multica`",
+		"muninn_where_left_off",
+		"muninn_recall",
+		"scoped",
+		"One concept per memory",
+		"muninn_remember",
+		"muninn_remember_batch",
+		"muninn_evolve",
+		"is the update path",
+		"forget + remember",
+		"muninn_link",
+		"muninn_guide",
+		"references/muninn-memory-source-map.md",
+	}
+	for _, want := range mustContain {
+		if !strings.Contains(body, want) {
+			t.Errorf("muninn-memory skill missing %q", want)
+		}
+	}
+
+	// This is an MCP-discipline skill, not a CLI skill: the body must not
+	// fence itself to the multica CLI.
+	mustNotContain := []string{
+		"Bash(multica *)",
+	}
+	for _, forbidden := range mustNotContain {
+		if strings.Contains(body, forbidden) {
+			t.Errorf("muninn-memory skill should not fence to the multica CLI %q", forbidden)
+		}
+	}
+
+	if !skillHasFile(skill, "references/muninn-memory-source-map.md") {
+		t.Errorf("muninn-memory skill missing supporting file references/muninn-memory-source-map.md")
+	}
+}
+
 func findSkill(t *testing.T, name string) (AgentSkillData, bool) {
 	t.Helper()
 	for _, s := range loadBuiltinSkills() {

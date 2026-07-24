@@ -86,6 +86,10 @@ export type {
   TimelineEntry,
   AssigneeFrequencyEntry,
 } from "./activity";
+export type {
+  WorkspaceTimelineEntry,
+  WorkspaceTimelineEntryKind,
+} from "./workspace-timeline";
 export type { IssueSubscriber } from "./subscriber";
 export type * from "./events";
 export type * from "./api";

@@ -1,0 +1,30 @@
+{
+  "title": "活动",
+  "subtitle": "工作区与守护进程事件的实时流。",
+  "filter": {
+    "all": "全部",
+    "activities": "活动",
+    "tasks": "任务",
+    "agent": "智能体",
+    "project": "项目",
+    "any_agent": "所有智能体",
+    "any_project": "所有项目",
+    "search": "搜索事件"
+  },
+  "state": {
+    "empty_title": "暂无动态",
+    "empty_description": "Issue 变更、评论和智能体任务运行会在此实时呈现。",
+    "no_results": "没有匹配筛选条件的事件。",
+    "error_title": "无法加载活动流",
+    "retry": "重试"
+  },
+  "live": "实时",
+  "refresh": "刷新",
+  "kind_task": "任务",
+  "system_actor": "系统",
+  "issue": "issue",
+  "transcript_tooltip": "查看记录",
+  "triggered_by": "触发原因",
+  "error_label": "错误",
+  "issue_short_fallback": "Issue {{prefix}}…"
+}

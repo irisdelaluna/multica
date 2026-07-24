@@ -1032,6 +1032,10 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 			// Assignee frequency
 			r.Get("/api/assignee-frequency", h.GetAssigneeFrequency)
 
+			// Workspace-wide live event timeline (activity_log + task runs,
+			// merged). Backfill for the activity timeline view.
+			r.Get("/api/workspace-timeline", h.ListWorkspaceTimeline)
+
 			// Issues
 			r.Route("/api/issues", func(r chi.Router) {
 				r.Post("/table/groups", h.ListIssueTableGroups)

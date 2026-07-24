@@ -30,6 +30,8 @@ import {
   SquadListSchema,
   SquadSchema,
   TimelineEntriesSchema,
+  WorkspaceTimelineEntriesSchema,
+  EMPTY_WORKSPACE_TIMELINE,
   UserSchema,
 } from "./schemas";
 import { parseWithFallback } from "./schema";
@@ -288,6 +290,67 @@ describe("TimelineEntriesSchema", () => {
     ]);
 
     expect(parsed[0]?.source_task_id).toBe("task-1");
+  });
+});
+
+describe("WorkspaceTimelineEntriesSchema", () => {
+  it("parses a merged activity + task feed and keeps kind-specific fields", () => {
+    const parsed = WorkspaceTimelineEntriesSchema.parse([
+      {
+        kind: "activity",
+        id: "act-1",
+        created_at: "2026-01-01T00:00:00Z",
+        actor_type: "member",
+        actor_id: "user-1",
+        issue_id: "issue-1",
+        issue_identifier: "IRI-1",
+        action: "status_changed",
+        details: { from: "todo", to: "in_progress" },
+      },
+      {
+        kind: "task",
+        id: "task:abc",
+        created_at: "2026-01-01T00:00:01Z",
+        actor_type: "agent",
+        actor_id: "agent-1",
+        status: "running",
+        agent_name: "Red Builder",
+        trigger_summary: "build the thing",
+      },
+    ]);
+
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0]?.kind).toBe("activity");
+    expect(parsed[0]?.action).toBe("status_changed");
+    expect(parsed[1]?.kind).toBe("task");
+    expect(parsed[1]?.status).toBe("running");
+  });
+
+  it("parseWithFallback degrades to an empty list on a malformed shape", () => {
+    // items not an array — installed clients must not crash, they get []
+    expect(
+      parseWithFallback(
+        { oops: true },
+        WorkspaceTimelineEntriesSchema,
+        EMPTY_WORKSPACE_TIMELINE,
+        { endpoint: "GET /api/workspace-timeline" },
+      ),
+    ).toEqual(EMPTY_WORKSPACE_TIMELINE);
+    // a single item missing the required id is rejected wholesale → fallback
+    expect(
+      parseWithFallback(
+        [{ kind: "activity", created_at: "x" }],
+        WorkspaceTimelineEntriesSchema,
+        EMPTY_WORKSPACE_TIMELINE,
+        { endpoint: "GET /api/workspace-timeline" },
+      ),
+    ).toEqual(EMPTY_WORKSPACE_TIMELINE);
+    // null / non-object bodies fall back too
+    expect(
+      parseWithFallback(null, WorkspaceTimelineEntriesSchema, EMPTY_WORKSPACE_TIMELINE, {
+        endpoint: "GET /api/workspace-timeline",
+      }),
+    ).toEqual(EMPTY_WORKSPACE_TIMELINE);
   });
 });
 

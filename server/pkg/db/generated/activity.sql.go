@@ -186,3 +186,69 @@ func (q *Queries) ListActivitiesForIssue(ctx context.Context, arg ListActivities
 	}
 	return items, nil
 }
+
+const listWorkspaceActivities = `-- name: ListWorkspaceActivities :many
+SELECT
+  a.id, a.workspace_id, a.issue_id, a.actor_type, a.actor_id, a.action, a.details, a.created_at,
+  i.number AS issue_number, i.title AS issue_title, i.project_id
+FROM activity_log a
+LEFT JOIN issue i ON i.id = a.issue_id
+WHERE a.workspace_id = $1
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $2
+`
+
+type ListWorkspaceActivitiesParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	Limit       int32       `json:"limit"`
+}
+
+type ListWorkspaceActivitiesRow struct {
+	ID          pgtype.UUID        `json:"id"`
+	WorkspaceID pgtype.UUID        `json:"workspace_id"`
+	IssueID     pgtype.UUID        `json:"issue_id"`
+	ActorType   pgtype.Text        `json:"actor_type"`
+	ActorID     pgtype.UUID        `json:"actor_id"`
+	Action      string             `json:"action"`
+	Details     []byte             `json:"details"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	IssueNumber pgtype.Int4        `json:"issue_number"`
+	IssueTitle  pgtype.Text        `json:"issue_title"`
+	ProjectID   pgtype.UUID        `json:"project_id"`
+}
+
+// Workspace-wide recent activity for the live event timeline (backfill). The
+// LEFT JOIN to issue attaches project/identifier context so the timeline can
+// filter by project and render issue links without a client-side lookup pass.
+// Newest first, capped at $2.
+func (q *Queries) ListWorkspaceActivities(ctx context.Context, arg ListWorkspaceActivitiesParams) ([]ListWorkspaceActivitiesRow, error) {
+	rows, err := q.db.Query(ctx, listWorkspaceActivities, arg.WorkspaceID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListWorkspaceActivitiesRow{}
+	for rows.Next() {
+		var i ListWorkspaceActivitiesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.WorkspaceID,
+			&i.IssueID,
+			&i.ActorType,
+			&i.ActorID,
+			&i.Action,
+			&i.Details,
+			&i.CreatedAt,
+			&i.IssueNumber,
+			&i.IssueTitle,
+			&i.ProjectID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

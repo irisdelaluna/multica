@@ -41,6 +41,7 @@ import type {
   TimelineEntry,
   User,
   WebhookDelivery,
+  WorkspaceTimelineEntry,
 } from "../types";
 import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
@@ -303,6 +304,34 @@ const TimelineEntrySchema = z.object({
 export const TimelineEntriesSchema = z.array(TimelineEntrySchema);
 
 export const EMPTY_TIMELINE_ENTRIES: TimelineEntry[] = [];
+
+// Workspace-wide live event timeline. Unifies activity_log rows (kind
+// "activity") with agent task runs (kind "task"). Self-contained — separate
+// from TimelineEntriesSchema — so this feed can be re-pointed at the future
+// event firehose without touching the issue-timeline contract. See
+// WorkspaceTimelineEntry (packages/core/types/workspace-timeline.ts).
+const WorkspaceTimelineEntrySchema = z.object({
+  kind: z.string(),
+  id: z.string(),
+  created_at: z.string(),
+  actor_type: z.string(),
+  actor_id: z.string(),
+  issue_id: z.string().optional(),
+  issue_identifier: z.string().optional(),
+  issue_title: z.string().optional(),
+  project_id: z.string().optional(),
+  action: z.string().optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
+  status: z.string().optional(),
+  agent_name: z.string().optional(),
+  agent_avatar_url: z.string().optional(),
+  error: z.string().nullable().optional(),
+  trigger_summary: z.string().nullable().optional(),
+}).loose();
+
+export const WorkspaceTimelineEntriesSchema = z.array(WorkspaceTimelineEntrySchema);
+
+export const EMPTY_WORKSPACE_TIMELINE: WorkspaceTimelineEntry[] = [];
 
 const OptionalStringSchema = z.preprocess(
   (value) => (typeof value === "string" ? value : undefined),

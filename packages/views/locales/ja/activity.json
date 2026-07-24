@@ -1,0 +1,30 @@
+{
+  "title": "アクティビティ",
+  "subtitle": "ワークスペースとデーモンのイベントをリアルタイムに表示します。",
+  "filter": {
+    "all": "すべて",
+    "activities": "アクティビティ",
+    "tasks": "タスク",
+    "agent": "エージェント",
+    "project": "プロジェクト",
+    "any_agent": "全エージェント",
+    "any_project": "全プロジェクト",
+    "search": "イベントを検索"
+  },
+  "state": {
+    "empty_title": "まだ動きはありません",
+    "empty_description": "イシューの変更、コメント、エージェントのタスク実行が発生順に表示されます。",
+    "no_results": "フィルターに一致するイベントはありません。",
+    "error_title": "アクティビティフィードを読み込めませんでした",
+    "retry": "再試行"
+  },
+  "live": "ライブ",
+  "refresh": "更新",
+  "kind_task": "タスク",
+  "system_actor": "システム",
+  "issue": "イシュー",
+  "transcript_tooltip": "トランスクリプトを表示",
+  "triggered_by": "トリガー",
+  "error_label": "エラー",
+  "issue_short_fallback": "イシュー {{prefix}}…"
+}

@@ -66,6 +66,7 @@ describe("describe activity detail", () => {
 describe("describe task status", () => {
   it("labels every known lifecycle state", () => {
     expect(taskStatusLabel("queued")).toBe("Queued");
+    expect(taskStatusLabel("deferred")).toBe("Deferred");
     expect(taskStatusLabel("running")).toBe("Running");
     expect(taskStatusLabel("completed")).toBe("Completed");
     expect(taskStatusLabel("failed")).toBe("Failed");

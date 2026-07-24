@@ -76,9 +76,13 @@ export function ActivityPage() {
 
   // Live updates: the server fans activity:created / task:* / issue:* /
   // comment:* out workspace-wide. A short debounce coalesces a burst so a
-  // streaming task doesn't refetch on every token. task:message (per-token
-  // streaming) and daemon heartbeats are intentionally excluded — they are
-  // not timeline-worthy transitions.
+  // streaming task doesn't refetch on every token. The task handlers cover
+  // the full workspace-facing lifecycle enumerated in
+  // contract/maps/agent-pipeline.md (queued → dispatched →
+  // waiting_local_directory → running → completed/failed/cancelled, plus the
+  // coarse task:progress hint). task:message (per-token transcript) is
+  // intentionally excluded — it has its own transcript surface, not a
+  // lifecycle transition. daemon heartbeats are not timeline-worthy either.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const invalidateFeed = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -98,6 +102,8 @@ export function ActivityPage() {
   useWSEvent("task:queued", onEvent);
   useWSEvent("task:dispatch", onEvent);
   useWSEvent("task:running", onEvent);
+  useWSEvent("task:waiting_local_directory", onEvent);
+  useWSEvent("task:progress", onEvent);
   useWSEvent("task:completed", onEvent);
   useWSEvent("task:failed", onEvent);
   useWSEvent("task:cancelled", onEvent);

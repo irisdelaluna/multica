@@ -88,6 +88,8 @@ export function taskStatusLabel(status: string | undefined): string {
   switch (status) {
     case "queued":
       return "Queued";
+    case "deferred":
+      return "Deferred";
     case "dispatched":
       return "Dispatched";
     case "running":
@@ -116,6 +118,7 @@ export function taskStatusTone(status: string | undefined): TaskStatusTone {
     case "dispatched":
       return "default";
     case "queued":
+    case "deferred":
     case "waiting_local_directory":
       return "secondary";
     case "failed":

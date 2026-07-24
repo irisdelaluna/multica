@@ -214,6 +214,7 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 		LLMAPIKey:                strings.TrimSpace(os.Getenv("MULTICA_LLM_API_KEY")),
 		LLMBaseURL:               strings.TrimSpace(os.Getenv("MULTICA_LLM_BASE_URL")),
 		LLMDefaultModel:          strings.TrimSpace(os.Getenv("MULTICA_LLM_DEFAULT_MODEL")),
+		LLMAskModel:              strings.TrimSpace(os.Getenv("MULTICA_LLM_ASK_MODEL")),
 		ServerVersion:            normalizeServerVersion(version),
 	}
 	h := handler.New(queries, pool, hub, bus, emailSvc, store, cfSigner, analyticsClient, signupConfig, daemonHub)
@@ -1200,6 +1201,12 @@ func NewRouterWithOptions(pool *pgxpool.Pool, hub *realtime.Hub, bus *events.Bus
 				r.Post("/reactions", h.AddReaction)
 				r.Delete("/reactions", h.RemoveReaction)
 			})
+
+			// Ask an expert (IRI-76). Synchronous single inference call
+			// wearing an agent's identity; starts no run and persists
+			// nothing, so it is a plain workspace-scoped POST rather than
+			// anything in the task/queue family.
+			r.Post("/api/ask", h.AskExpert)
 
 			// Agents
 			r.Route("/api/agents", func(r chi.Router) {

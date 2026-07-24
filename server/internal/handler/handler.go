@@ -104,9 +104,15 @@ type Config struct {
 	//   - LLMAPIKey       -> MULTICA_LLM_API_KEY
 	//   - LLMBaseURL       -> MULTICA_LLM_BASE_URL (OpenAI or any compatible gateway)
 	//   - LLMDefaultModel  -> MULTICA_LLM_DEFAULT_MODEL (used when a request omits `model`)
+	//   - LLMAskModel      -> MULTICA_LLM_ASK_MODEL (POST /api/ask only; see ask.go)
 	LLMAPIKey       string
 	LLMBaseURL      string
 	LLMDefaultModel string
+	// LLMAskModel overrides the model used by POST /api/ask. That path is
+	// latency-bound rather than quality-bound (IRI-76), so a deployment points
+	// this at a flash-class or local model even when LLMDefaultModel is
+	// something larger. Empty falls back to LLMDefaultModel.
+	LLMAskModel string
 	// ServerVersion is the build version of the running API binary (the same
 	// value main.go stamps via -X main.version and reports on /metrics).
 	// Surfaced through /api/config so self-hosted operators can confirm which

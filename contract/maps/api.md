@@ -327,10 +327,10 @@
 
 | Endpoint | Method | Auth | Workspace | Schema | Description |
 |----------|--------|------|-----------|--------|-------------|
-| `/api/skills` | GET | session | required | ❌ | List skills |
+| `/api/skills` | GET | session | required | ✅ | List workspace and read-only built-in skills |
 | `/api/skills/search` | GET | session | required | ❌ | Search skills |
 | `/api/skills` | POST | session | required | ❌ | Create skill |
-| `/api/skills/{id}` | GET | session | required | ❌ | Get skill |
+| `/api/skills/{id}` | GET | session | required | ✅ | Get workspace or built-in skill |
 | `/api/skills/{id}` | PUT | session | required | ❌ | Update skill |
 | `/api/skills/{id}` | DELETE | session | required | ❌ | Delete skill |
 | `/api/skills/import` | POST | session | required | ❌ | Import from URL |
@@ -939,7 +939,7 @@ All routes under `/api/daemon` require daemon authentication (mdt_ token).
 | Invitations | 5 | 0 |
 | Issues | 45 | 15 ✅ |
 | Agents | 21 | 6 ✅ |
-| Skills | 12 | 3 ✅ |
+| Skills | 12 | 5 ✅ |
 | Projects | 10 | 1 ✅ |
 | Labels | 5 | 4 ✅ |
 | Properties | 4 | 4 ✅ |

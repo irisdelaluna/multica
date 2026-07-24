@@ -279,9 +279,13 @@ import {
   EMPTY_LIST_PROPERTIES_RESPONSE,
   EMPTY_ISSUE_PROPERTIES_RESPONSE,
   ResourceLabelsResponseSchema,
+  SkillSchema,
+  SkillSummaryListSchema,
   EMPTY_LABEL,
   EMPTY_LIST_LABELS_RESPONSE,
   EMPTY_RESOURCE_LABELS_RESPONSE,
+  EMPTY_SKILL,
+  EMPTY_SKILL_SUMMARY_LIST,
 } from "./schemas";
 
 /** Identifies the calling client to the server.
@@ -1966,11 +1970,17 @@ export class ApiClient {
 
   // Skills
   async listSkills(): Promise<SkillSummary[]> {
-    return this.fetch("/api/skills");
+    const raw = await this.fetch<unknown>("/api/skills");
+    return parseWithFallback(raw, SkillSummaryListSchema, EMPTY_SKILL_SUMMARY_LIST, {
+      endpoint: "GET /api/skills",
+    });
   }
 
   async getSkill(id: string): Promise<Skill> {
-    return this.fetch(`/api/skills/${id}`);
+    const raw = await this.fetch<unknown>(`/api/skills/${id}`);
+    return parseWithFallback(raw, SkillSchema, EMPTY_SKILL, {
+      endpoint: "GET /api/skills/{id}",
+    });
   }
 
   async createSkill(data: CreateSkillRequest): Promise<Skill> {

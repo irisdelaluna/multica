@@ -105,6 +105,9 @@ export function canAssignAgentToIssue(
 // ---- Skills ----------------------------------------------------------------
 
 export function canEditSkill(skill: Skill, ctx: PermissionContext): Decision {
+  if (skill.read_only === true) {
+    return deny("read_only", "Built-in skills are read-only.");
+  }
   if (ctx.userId === null) {
     return deny("not_authenticated", "Sign in to edit this skill.");
   }

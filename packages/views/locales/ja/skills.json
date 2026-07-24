@@ -42,6 +42,7 @@
     "updated": "更新日",
     "created": "作成日",
     "lock_tooltip": "読み取り専用 — 作成者または管理者のみが編集できます",
+    "builtin_tooltip": "組み込みスキル — 常に利用可能で読み取り専用",
     "unused": "— 未使用",
     "by_creator": "{{name}}",
     "source_manual": "手動で作成",
@@ -50,7 +51,8 @@
     "source_runtime_unknown": "ランタイムから",
     "source_clawhub": "ClawHub から",
     "source_skills_sh": "Skills.sh から",
-    "source_github": "GitHub から"
+    "source_github": "GitHub から",
+    "source_builtin": "組み込み"
   },
   "actions": {
     "row_menu": "操作",
@@ -110,6 +112,7 @@
       "origin_clawhub": "インポート済み · ClawHub",
       "origin_skills_sh": "インポート済み · Skills.sh",
       "origin_github": "インポート済み · GitHub",
+      "origin_builtin": "組み込み · Multica",
       "origin_workspace": "ワークスペース",
       "updated_label": "{{when}} に更新",
       "by_creator": "{{name}}"
@@ -137,9 +140,11 @@
       "permissions_owner": "このスキルを編集および削除できます。変更は次回のエージェント実行から有効になります。",
       "permissions_locked_creator": "このスキルを編集できるのは作成者（{{name}}）またはワークスペース管理者のみです。",
       "permissions_locked": "このスキルを編集できるのは作成者またはワークスペース管理者のみです。",
+      "permissions_builtin": "Multica が提供し、すべてのエージェントが利用できる読み取り専用スキルです。",
       "used_by_empty": "まだどのエージェントにも割り当てられていません。エージェントのスキルタブを開いて割り当ててください。"
     },
     "origin_card": {
+      "builtin": "Multica に組み込み",
       "imported_runtime": "ローカルランタイムからインポート",
       "imported_clawhub": "ClawHub からインポート",
       "imported_skills_sh": "Skills.sh からインポート",

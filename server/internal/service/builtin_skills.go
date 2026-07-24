@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"path"
 	"strings"
+
+	skillpkg "github.com/multica-ai/multica/server/internal/skill"
 )
 
 //go:embed builtin_skills
@@ -50,7 +52,12 @@ func loadBuiltinSkill(name string) (AgentSkillData, bool) {
 		// than ship an empty skill.
 		return AgentSkillData{}, false
 	}
-	skill := AgentSkillData{Name: name, Content: string(content)}
+	_, description := skillpkg.ParseSkillFrontmatter(string(content))
+	skill := AgentSkillData{
+		Name:        name,
+		Description: description,
+		Content:     string(content),
+	}
 	// Any other file in the directory becomes a supporting file, preserving
 	// its relative path so subdirectories (e.g. rules/styling.md) survive.
 	_ = fs.WalkDir(builtinSkillsFS, dir, func(p string, d fs.DirEntry, walkErr error) error {

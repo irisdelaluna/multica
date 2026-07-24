@@ -7,6 +7,7 @@ import {
   Download,
   Filter,
   HardDrive,
+  Lock,
   Pencil,
   Search,
   X,
@@ -73,6 +74,7 @@ export function countActiveFilterDimensions(
 }
 
 const ORIGIN_TYPES: OriginType[] = [
+  "builtin",
   "manual",
   "runtime_local",
   "clawhub",
@@ -81,6 +83,7 @@ const ORIGIN_TYPES: OriginType[] = [
 ];
 
 function originIcon(type: OriginType) {
+  if (type === "builtin") return <Lock className="size-3.5" />;
   if (type === "manual") return <Pencil className="size-3.5" />;
   if (type === "runtime_local") return <HardDrive className="size-3.5" />;
   return <Download className="size-3.5" />;
@@ -148,6 +151,7 @@ export function SkillListToolbar({
   }
 
   const ORIGIN_LABELS: Record<OriginType, string> = {
+    builtin: t(($) => $.table.source_builtin),
     manual: t(($) => $.table.source_manual),
     runtime_local: t(($) => $.table.source_runtime_unknown),
     clawhub: t(($) => $.table.source_clawhub),

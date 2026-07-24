@@ -54,6 +54,62 @@ func TestListSkills_OmitsContent(t *testing.T) {
 	}
 }
 
+func TestListSkills_IncludesReadOnlyBuiltins(t *testing.T) {
+	w := httptest.NewRecorder()
+	req := newRequest("GET", "/api/skills?workspace_id="+testWorkspaceID, nil)
+	testHandler.ListSkills(w, req)
+	if w.Code != 200 {
+		t.Fatalf("ListSkills: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var rows []map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &rows); err != nil {
+		t.Fatalf("ListSkills: failed to decode body: %v", err)
+	}
+
+	builtinCount := 0
+	for _, row := range rows {
+		if row["source"] != "builtin" {
+			continue
+		}
+		builtinCount++
+		if row["read_only"] != true {
+			t.Errorf("built-in skill is not read-only: %v", row)
+		}
+		if row["description"] == "" {
+			t.Errorf("built-in skill has no description: %v", row)
+		}
+		if _, ok := row["content"]; ok {
+			t.Errorf("built-in list item leaked content: %v", row)
+		}
+	}
+	if want := len(testHandler.TaskService.BuiltinSkills()); builtinCount != want {
+		t.Fatalf("built-in skill count = %d, want %d", builtinCount, want)
+	}
+}
+
+func TestGetSkill_IncludesBuiltinContent(t *testing.T) {
+	const id = "builtin:multica-working-on-issues"
+	w := httptest.NewRecorder()
+	req := newRequest("GET", "/api/skills/"+id+"?workspace_id="+testWorkspaceID, nil)
+	req = withURLParam(req, "id", id)
+	testHandler.GetSkill(w, req)
+	if w.Code != 200 {
+		t.Fatalf("GetSkill: expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("GetSkill: failed to decode body: %v", err)
+	}
+	if resp["source"] != "builtin" || resp["read_only"] != true {
+		t.Fatalf("unexpected built-in markers: %v", resp)
+	}
+	if content, _ := resp["content"].(string); !strings.Contains(content, "# Working on Multica issues") {
+		t.Fatalf("built-in detail omitted SKILL.md content")
+	}
+}
+
 // TestGetSkill_IncludesContent confirms the detail endpoint still ships the
 // full SKILL.md body — the list-summary change must not regress single-skill
 // reads.

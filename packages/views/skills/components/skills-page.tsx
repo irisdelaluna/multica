@@ -247,7 +247,11 @@ function NameCell({ row }: { row: SkillRow }) {
               <Lock className="h-3 w-3 shrink-0 text-muted-foreground/60" />
             }
           />
-          <TooltipContent>{t(($) => $.table.lock_tooltip)}</TooltipContent>
+          <TooltipContent>
+            {skill.source === "builtin"
+              ? t(($) => $.table.builtin_tooltip)
+              : t(($) => $.table.lock_tooltip)}
+          </TooltipContent>
         </Tooltip>
       )}
     </ListGridCell>
@@ -328,7 +332,10 @@ function SourceCell({
 
   let icon = <Pencil className="h-3 w-3 shrink-0" />;
   let label: string = t(($) => $.table.source_manual);
-  if (origin.type === "runtime_local") {
+  if (origin.type === "builtin") {
+    icon = <Lock className="h-3 w-3 shrink-0" />;
+    label = t(($) => $.table.source_builtin);
+  } else if (origin.type === "runtime_local") {
     icon = <HardDrive className="h-3 w-3 shrink-0" />;
     label = runtime
       ? t(($) => $.table.source_runtime_named, { name: runtime.name })
@@ -649,7 +656,10 @@ export default function SkillsPage() {
           : null;
       return {
         skill,
-        agents: assignments.get(skill.id) ?? [],
+        agents:
+          skill.source === "builtin"
+            ? agents
+            : assignments.get(skill.id) ?? [],
         creator: skill.created_by
           ? membersById.get(skill.created_by) ?? null
           : null,
@@ -658,7 +668,7 @@ export default function SkillsPage() {
         canEdit: canEditSkill(skill, { userId: currentUserId, role: myRole }),
       };
     });
-  }, [skills, assignments, membersById, runtimesById, currentUserId, myRole]);
+  }, [skills, agents, assignments, membersById, runtimesById, currentUserId, myRole]);
 
   // Visible rows: name search + filters, then sort.
   const rows = useMemo<SkillRow[]>(() => {
@@ -735,11 +745,15 @@ export default function SkillsPage() {
   };
 
   const selectedRows = rows.filter((row) => selectedIds.has(row.skill.id));
-  const allSelected = rows.length > 0 && selectedRows.length === rows.length;
+  const selectableRows = rows.filter((row) => row.skill.source !== "builtin");
+  const allSelected =
+    selectableRows.length > 0 && selectedRows.length === selectableRows.length;
   const someSelected = selectedRows.length > 0 && !allSelected;
   const handleToggleAll = () => {
     setSelectedIds(
-      allSelected ? new Set() : new Set(rows.map((r) => r.skill.id)),
+      allSelected
+        ? new Set()
+        : new Set(selectableRows.map((r) => r.skill.id)),
     );
   };
 
@@ -874,10 +888,14 @@ export default function SkillsPage() {
                 }`}
                 {...rowLink(paths.skillDetail(row.skill.id))}
               >
-                <CheckboxCell
-                  checked={selectedIds.has(row.skill.id)}
-                  onToggle={() => toggleSelected(row.skill.id)}
-                />
+                {row.skill.source === "builtin" ? (
+                  <ListGridCell className="px-0" />
+                ) : (
+                  <CheckboxCell
+                    checked={selectedIds.has(row.skill.id)}
+                    onToggle={() => toggleSelected(row.skill.id)}
+                  />
+                )}
                 <NameCell row={row} />
                 {isColVisible("usedBy") ? (
                   <UsedByCell agents={row.agents} />
@@ -896,14 +914,18 @@ export default function SkillsPage() {
                 )}
                 {isColVisible("updated") ? (
                   <ListGridCell className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground @2xl:flex">
-                    {timeAgo(row.skill.updated_at)}
+                    {row.skill.source === "builtin"
+                      ? "—"
+                      : timeAgo(row.skill.updated_at)}
                   </ListGridCell>
                 ) : (
                   <ListGridCell className="hidden px-0 @2xl:flex" />
                 )}
                 {isColVisible("created") ? (
                   <ListGridCell className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground @2xl:flex">
-                    {timeAgo(row.skill.created_at)}
+                    {row.skill.source === "builtin"
+                      ? "—"
+                      : timeAgo(row.skill.created_at)}
                   </ListGridCell>
                 ) : (
                   <ListGridCell className="hidden px-0 @2xl:flex" />

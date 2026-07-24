@@ -191,15 +191,23 @@ export function runningSince(entry: WorkspaceTimelineEntry): number | null {
  */
 export function formatRunningDurationMs(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) return "0s";
-  if (ms < 60_000) {
-    return `${Math.max(1, Math.round(ms / 1000))}s`;
+  // Floor once, before decomposition, so one rounding policy carries across
+  // every unit. Rounding the seconds inside each bucket independently can
+  // emit an impossible "60s" field at a unit boundary — e.g. 59.6s → "60s",
+  // or 1m59.6s → "1m 60s". Because the one-second tick is not aligned to a
+  // task's fractional start time, that boundary is reached during ordinary
+  // ticking, so the carry has to happen at decomposition, not after.
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) {
+    // A just-started task (< 1s) still reads "1s" rather than flashing "0s".
+    return `${Math.max(1, totalSeconds)}s`;
   }
-  if (ms < 60 * 60_000) {
-    const m = Math.floor(ms / 60_000);
-    const s = Math.round((ms % 60_000) / 1000);
+  if (totalSeconds < 60 * 60) {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
     return `${m}m ${String(s).padStart(2, "0")}s`;
   }
-  const h = Math.floor(ms / (60 * 60_000));
-  const m = Math.floor((ms % (60 * 60_000)) / 60_000);
+  const h = Math.floor(totalSeconds / (60 * 60));
+  const m = Math.floor((totalSeconds % (60 * 60)) / 60);
   return `${h}h ${m}m`;
 }

@@ -305,8 +305,6 @@ export function ActivityPage() {
                 actorName={getActorName(entry.actor_type, entry.actor_id)}
                 timeAgo={timeAgo}
                 now={now}
-                  entry.issue_id ? paths.issueDetail(entry.issue_id) : null
-                }
               />
             ))}
           </ol>

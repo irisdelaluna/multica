@@ -212,10 +212,13 @@ describe("runningSince", () => {
 });
 
 describe("formatRunningDurationMs", () => {
-  it("formats sub-minute durations as rounded seconds", () => {
+  it("formats sub-minute durations as floored seconds (never 60s)", () => {
     expect(formatRunningDurationMs(0)).toBe("0s");
     expect(formatRunningDurationMs(30_000)).toBe("30s");
     expect(formatRunningDurationMs(59_400)).toBe("59s");
+    // A just-started task that hasn't reached one second still reads "1s"
+    // rather than flashing "0s" while the timer spins up.
+    expect(formatRunningDurationMs(400)).toBe("1s");
   });
 
   it("pads seconds inside the minute form so a column stays aligned", () => {
@@ -225,5 +228,30 @@ describe("formatRunningDurationMs", () => {
 
   it("rolls into hours past 60 minutes", () => {
     expect(formatRunningDurationMs(90 * 60_000)).toBe("1h 30m");
+  });
+
+  // Regression: the one-second tick is not aligned to a task's fractional
+  // start time, so a running timer routinely lands just under a unit
+  // boundary (e.g. 59.6s). The previous implementation bucketed by the
+  // unrounded duration and then rounded seconds inside that bucket, which
+  // produced impossible "60s" / "60m" fields exactly there. Floored-at-
+  // decomposition carries across units so this cannot happen on either
+  // side of a minute or hour boundary.
+  it("never emits a 60s field just under a minute boundary", () => {
+    expect(formatRunningDurationMs(59_600)).toBe("59s");
+    expect(formatRunningDurationMs(59_999)).toBe("59s");
+    // The boundary itself rolls cleanly into the minute form.
+    expect(formatRunningDurationMs(60_000)).toBe("1m 00s");
+  });
+
+  it("never emits a 60s field just under the next minute", () => {
+    expect(formatRunningDurationMs(60_000 + 59_600)).toBe("1m 59s");
+    expect(formatRunningDurationMs(2 * 60_000 - 1)).toBe("1m 59s");
+  });
+
+  it("never emits a 60m field just under an hour boundary", () => {
+    expect(formatRunningDurationMs(59 * 60_000 + 59_600)).toBe("59m 59s");
+    expect(formatRunningDurationMs(60 * 60_000 - 1)).toBe("59m 59s");
+    expect(formatRunningDurationMs(60 * 60_000)).toBe("1h 0m");
   });
 });

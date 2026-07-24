@@ -371,6 +371,7 @@ const WorkspaceTimelineEntrySchema = z.object({
   action: z.string().optional(),
   details: z.record(z.string(), z.unknown()).optional(),
   status: z.string().optional(),
+  started_at: z.string().optional(),
   agent_name: z.string().optional(),
   agent_avatar_url: z.string().optional(),
   error: z.string().nullable().optional(),

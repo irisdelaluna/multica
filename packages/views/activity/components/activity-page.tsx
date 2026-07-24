@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, AlertCircle, RefreshCw, Search, Cpu } from "lucide-react";
+import { Activity, AlertCircle, RefreshCw, Search, Cpu, Zap } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { AgentTask, WorkspaceTimelineEntry } from "@multica/core/types";
 import { useWorkspaceId } from "@multica/core/hooks";
@@ -35,6 +35,9 @@ import {
   activityDetail,
   activityVerb,
   bareTaskId,
+  formatRunningDurationMs,
+  isInFlight,
+  runningSince,
   taskStatusLabel,
   taskStatusTone,
 } from "../describe";
@@ -78,6 +81,12 @@ export function ActivityPage() {
   const [agentId, setAgentId] = useState<string>("");
   const [projectId, setProjectId] = useState<string>("");
   const [query, setQuery] = useState<string>("");
+  // In-flight filter: isolates work the fleet hasn't finished (the broad
+  // reading of "what is running right now" — running plus queued/dispatched/
+  // waiting_local_directory). It layers on top of the kind/agent/project/
+  // search predicates as a fourth predicate through the same `filtered` memo,
+  // not a new control paradigm.
+  const [inFlightOnly, setInFlightOnly] = useState(false);
 
   // Live updates: the server fans activity:created / task:* / issue:* /
   // comment:* out workspace-wide. A short debounce coalesces a burst so a
@@ -119,6 +128,7 @@ export function ActivityPage() {
     const q = query.trim().toLowerCase();
     return entries.filter((e) => {
       if (kind !== "all" && e.kind !== kind) return false;
+      if (inFlightOnly && !isInFlight(e)) return false;
       if (agentId && e.actor_id !== agentId) return false;
       if (projectId && e.project_id !== projectId) return false;
       if (q) {
@@ -138,9 +148,17 @@ export function ActivityPage() {
       }
       return true;
     });
-  }, [entries, kind, agentId, projectId, query, getActorName]);
+  }, [entries, kind, inFlightOnly, agentId, projectId, query, getActorName]);
 
-  const hasFilters = kind !== "all" || agentId !== "" || projectId !== "" || query !== "";
+  const hasFilters =
+    kind !== "all" || inFlightOnly || agentId !== "" || projectId !== "" || query !== "";
+
+  // A running task's elapsed time is the one timestamp that changes on its
+  // own, so tick once a second — but only while a running row is actually on
+  // screen, so an idle feed never pays for a timer. `now` is passed down to
+  // each row to drive the live "running for" duration.
+  const hasRunningShown = filtered.some((e) => e.status === "running");
+  const now = useNowTick(hasRunningShown);
 
   return (
     <div className="flex h-full flex-col">
@@ -199,6 +217,18 @@ export function ActivityPage() {
             </Button>
           ))}
         </div>
+
+        <Button
+          type="button"
+          size="sm"
+          variant={inFlightOnly ? "default" : "outline"}
+          aria-pressed={inFlightOnly}
+          onClick={() => setInFlightOnly((v) => !v)}
+          className="h-7 px-2.5 text-xs"
+        >
+          <Zap aria-hidden="true" className="size-3.5" />
+          {t(($) => $.filter.in_flight)}
+        </Button>
 
         <NativeSelect
           size="sm"
@@ -274,6 +304,9 @@ export function ActivityPage() {
                 entry={entry}
                 actorName={getActorName(entry.actor_type, entry.actor_id)}
                 timeAgo={timeAgo}
+                now={now}
+                  entry.issue_id ? paths.issueDetail(entry.issue_id) : null
+                }
               />
             ))}
           </ol>
@@ -319,10 +352,12 @@ export function TimelineRow({
   entry,
   actorName,
   timeAgo,
+  now,
 }: {
   entry: WorkspaceTimelineEntry;
   actorName: string;
   timeAgo: (dateStr: string) => string;
+  now: number;
 }) {
   const { t } = useT("activity");
   const isSystem = entry.actor_type === "system" || !entry.actor_id;
@@ -336,6 +371,13 @@ export function TimelineRow({
   // dialog. Every other task status exposes the same transcript affordance.
   const showTranscript = task !== null && entry.status !== "queued";
   const isRunning = entry.status === "running";
+  // Live elapsed-run timer. started_at (run time) is the right origin for
+  // "how long has it been running"; created_at would include time parked in
+  // the queue. Only running rows carry a started_at that advances, and the
+  // page only ticks `now` while a running row is on screen.
+  const since = runningSince(entry);
+  const runningFor =
+    isRunning && since != null ? formatRunningDurationMs(now - since) : null;
 
   // Secondary line: the one wide field most worth surfacing, kept on its own
   // truncated line with the full value available on hover. This is what keeps
@@ -389,7 +431,13 @@ export function TimelineRow({
   ) : null;
 
   return (
-    <li className="group flex items-start gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
+    <li
+      className={`group flex items-start gap-3 border-l-2 border-transparent px-5 py-3 transition-colors ${
+        isRunning
+          ? "border-brand/60 bg-brand/5 hover:bg-brand/10"
+          : "hover:bg-muted/40"
+      }`}
+    >
       <div className="mt-0.5 shrink-0">
         {isSystem ? (
           <span className="inline-flex size-7 items-center justify-center rounded-full bg-muted text-muted-foreground">
@@ -481,6 +529,20 @@ export function TimelineRow({
           </div>
         ) : null}
         <div className="flex flex-col items-end gap-1">
+          {runningFor ? (
+            // Live "running for" — the one timestamp whose value is still
+            // changing. Brand-tinted and marked with the same pulse the
+            // header's Live indicator uses so a running row reads as live at
+            // a glance, even mid-list. Sits above the enqueue time so the
+            // eye lands on the active metric first.
+            <span className="flex items-center gap-1.5 font-mono text-xs tabular-nums text-brand">
+              <span className="relative flex size-1.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-brand/60" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-brand" />
+              </span>
+              {t(($) => $.running_for, { duration: runningFor })}
+            </span>
+          ) : null}
           <time className="font-mono text-xs tabular-nums text-muted-foreground/70">
             {timeAgo(entry.created_at)}
           </time>
@@ -510,4 +572,19 @@ function TimelineSkeleton() {
       ))}
     </ol>
   );
+}
+
+// Ticking clock for the live running timer. Only ticks while `enabled` (a
+// running row is on screen), so an idle feed holds a stable timestamp with no
+// interval. Snaps to `now` the moment it enables so the first painted duration
+// is correct rather than up to a second stale.
+function useNowTick(enabled: boolean, intervalMs = 1000): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(id);
+  }, [enabled, intervalMs]);
+  return now;
 }

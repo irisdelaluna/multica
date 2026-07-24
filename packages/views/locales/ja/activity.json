@@ -10,7 +10,8 @@
     "project": "プロジェクト",
     "any_agent": "全エージェント",
     "any_project": "全プロジェクト",
-    "search": "イベントを検索"
+    "search": "イベントを検索",
+    "in_flight": "実行中"
   },
   "state": {
     "empty_title": "まだ動きはありません",
@@ -21,6 +22,7 @@
   },
   "live": "ライブ",
   "refresh": "更新",
+  "running_for": "実行中 {{duration}}",
   "kind_task": "タスク",
   "commented_on": "にコメントしました",
   "system_actor": "システム",

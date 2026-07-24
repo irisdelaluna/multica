@@ -1,6 +1,10 @@
 package service
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -592,6 +596,233 @@ func TestMuninnMemorySkillCoversRecallRememberDiscipline(t *testing.T) {
 	if !skillHasFile(skill, "references/muninn-memory-source-map.md") {
 		t.Errorf("muninn-memory skill missing supporting file references/muninn-memory-source-map.md")
 	}
+}
+
+// TestCodebaseOrientationSkillCoversRepoMap pins the multica-codebase-
+// orientation skill — the shared floor every agent holds so any idle agent can
+// take any issue. Unlike the CLI/MCP contract skills, this one is pure
+// orientation: it fences to the repo's build/VCS tooling, not the multica CLI,
+// and it carries stable structural anchors (directory names, make targets,
+// config files) rather than file:line citations that rot on every commit.
+// The companion TestCodebaseOrientationSkillClaimsAreReal checks each anchor
+// against the live tree, so a restructuring that makes the skill a lie breaks
+// CI here.
+func TestCodebaseOrientationSkillCoversRepoMap(t *testing.T) {
+	skill, ok := findSkill(t, "multica-codebase-orientation")
+	if !ok {
+		return
+	}
+	fm, body, _ := splitFrontmatter(skill.Content)
+
+	if got := strings.TrimSpace(fm["user-invocable"]); got != "false" {
+		t.Errorf("user-invocable = %q, want false (orientation triggers from context)", got)
+	}
+	// This skill orients work in the repo — it teaches make/pnpm/go/git/gh, not
+	// the multica CLI. Assert the build/VCS tool families are present.
+	for _, tool := range []string{"Bash(make *)", "Bash(pnpm *)", "Bash(go *)", "Bash(git *)"} {
+		if !strings.Contains(fm["allowed-tools"], tool) {
+			t.Errorf("allowed-tools %q missing %q (orientation covers the repo's build/VCS tooling)", fm["allowed-tools"], tool)
+		}
+	}
+
+	mustContain := []string{
+		// Where things live — the area map.
+		"server/internal/handler",
+		"server/internal/service",
+		"server/pkg/db/queries",
+		"server/pkg/db/generated",
+		"server/migrations",
+		"packages/core",
+		"packages/views",
+		"packages/ui",
+		"apps/web",
+		"apps/desktop",
+		"contract/maps",
+		// Run and check — the make/pnpm surface.
+		"make dev",
+		"make check",
+		"make test",
+		"make sqlc",
+		"make worktree-env",
+		".env.worktree",
+		"Node 22",
+		"Playwright",
+		// The hard, non-obvious rules.
+		"foreign key",
+		"CONCURRENTLY",
+		"parseWithFallback",
+		"iris",
+		// Pointers to depth, not restatement.
+		"multica-muninn-memory",
+		"multica-working-on-issues",
+		"CLAUDE.md",
+		"references/codebase-orientation-source-map.md",
+	}
+	for _, want := range mustContain {
+		if !strings.Contains(body, want) {
+			t.Errorf("codebase-orientation skill missing %q", want)
+		}
+	}
+
+	// A skill-as-map must not carry file:line citations in the always-loaded
+	// body — they rot on every commit. Depth lives in the source map and
+	// contract/maps, cited there. Source-language line refs are the tell.
+	lineCitation := regexp.MustCompile(`\.(go|ts|tsx|sql|py|hs):\d+`)
+	if lineCitation.MatchString(body) {
+		t.Errorf("codebase-orientation body contains a file:line citation; move it to the source map, not the body")
+	}
+
+	if !skillHasFile(skill, "references/codebase-orientation-source-map.md") {
+		t.Errorf("codebase-orientation skill missing supporting file references/codebase-orientation-source-map.md")
+	}
+}
+
+// TestCodebaseOrientationSkillClaimsAreReal is the eval that gives the skill its
+// value: every structural claim — a path, a make target, a config file — is
+// checked against the live repository, so the skill fails CI the moment it
+// describes a layout that no longer exists. It resolves the repo root from the
+// test file's own location (not the process cwd, which varies), then walks the
+// claimed tree. File:line is intentionally not pinned (rots on every commit);
+// these are structural anchors that change only on real restructuring.
+func TestCodebaseOrientationSkillClaimsAreReal(t *testing.T) {
+	root := repoRoot(t)
+
+	for _, rel := range []string{
+		// server/ layout the skill maps.
+		"server",
+		"server/internal/handler",
+		"server/internal/service",
+		"server/pkg/db/queries",
+		"server/pkg/db/generated",
+		"server/migrations",
+		"server/cmd",
+		// Monorepo packages with hard boundaries.
+		"packages/core",
+		"packages/ui",
+		"packages/views",
+		// App shells.
+		"apps/web",
+		"apps/desktop",
+		"apps/mobile",
+		// Depth reference.
+		"contract/maps",
+	} {
+		if !dirExists(filepath.Join(root, rel)) {
+			t.Errorf("skill claims %q exists, but it does not — update the skill (or the repo)", rel)
+		}
+	}
+
+	for _, rel := range []string{
+		"CLAUDE.md",
+		"AGENTS.md",
+		"server/go.mod",
+		"server/sqlc.yaml",
+		"apps/mobile/CLAUDE.md",
+		".github/workflows/ci.yml",
+	} {
+		if !fileExists(filepath.Join(root, rel)) {
+			t.Errorf("skill claims file %q exists, but it does not — update the skill (or the repo)", rel)
+		}
+	}
+
+	// The five contract/maps files the skill names.
+	maps, err := os.ReadDir(filepath.Join(root, "contract", "maps"))
+	if err != nil {
+		t.Fatalf("contract/maps unreadable: %v", err)
+	}
+	have := map[string]bool{}
+	for _, e := range maps {
+		have[e.Name()] = true
+	}
+	for _, name := range []string{"api.md", "api-shape-conventions.md", "realtime.md", "storage.md", "agent-pipeline.md"} {
+		if !have[name] {
+			t.Errorf("skill names contract/maps/%s, but it is absent", name)
+		}
+	}
+
+	// Make targets the skill teaches must actually be declared.
+	makefile, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatalf("Makefile unreadable: %v", err)
+	}
+	makefileStr := string(makefile)
+	for _, target := range []string{"dev:", "start:", "stop:", "check:", "test:", "sqlc:", "migrate-up:", "worktree-env:"} {
+		if !strings.Contains(makefileStr, target) {
+			t.Errorf("skill teaches `make %s`, but the Makefile does not declare target %q", strings.TrimSuffix(target, ":"), target)
+		}
+	}
+
+	// The toolchain pins the skill states.
+	ci, err := os.ReadFile(filepath.Join(root, ".github", "workflows", "ci.yml"))
+	if err != nil {
+		t.Fatalf("ci.yml unreadable: %v", err)
+	}
+	if !strings.Contains(string(ci), "node-version: 22") {
+		t.Errorf("skill claims CI pins Node 22, but ci.yml does not contain 'node-version: 22'")
+	}
+	goMod, err := os.ReadFile(filepath.Join(root, "server", "go.mod"))
+	if err != nil {
+		t.Fatalf("server/go.mod unreadable: %v", err)
+	}
+	if !strings.Contains(string(goMod), "go 1.26.1") {
+		t.Errorf("skill claims Go 1.26.1, but server/go.mod does not state it")
+	}
+
+	// The sqlc layout the skill describes.
+	sqlcCfg, err := os.ReadFile(filepath.Join(root, "server", "sqlc.yaml"))
+	if err != nil {
+		t.Fatalf("sqlc.yaml unreadable: %v", err)
+	}
+	for _, fragment := range []string{"pkg/db/queries", "pkg/db/generated", "migrations/"} {
+		if !strings.Contains(string(sqlcCfg), fragment) {
+			t.Errorf("skill describes sqlc config with %q, but sqlc.yaml lacks it", fragment)
+		}
+	}
+
+	// The hard rules the skill restates must still live in the authority it
+	// points at (CLAUDE.md). If a rule moves out of CLAUDE.md, the skill's
+	// "CLAUDE.md is the authority" claim becomes a lie.
+	claudemd, err := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
+	if err != nil {
+		t.Fatalf("CLAUDE.md unreadable: %v", err)
+	}
+	claudeStr := string(claudemd)
+	for _, rule := range []string{"foreign key", "CONCURRENTLY", "parseWithFallback"} {
+		if !strings.Contains(claudeStr, rule) {
+			t.Errorf("skill says CLAUDE.md is the authority for %q, but CLAUDE.md no longer states it", rule)
+		}
+	}
+}
+
+// repoRoot locates the repository root from the test file's own path, walking up
+// until it finds a directory that holds both Makefile and server/go.mod. It does
+// not depend on the process working directory, which varies between `go test`,
+// editor integrations, and CI.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed; cannot locate repo root")
+	}
+	dir := filepath.Dir(thisFile)
+	for i := 0; i < 8; i++ {
+		if fileExists(filepath.Join(dir, "Makefile")) && fileExists(filepath.Join(dir, "server", "go.mod")) {
+			return dir
+		}
+		dir = filepath.Dir(dir)
+	}
+	t.Fatal("could not locate repo root (Makefile + server/go.mod) above the test file")
+	return ""
+}
+
+func fileExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && !info.IsDir()
+}
+
+func dirExists(p string) bool {
+	info, err := os.Stat(p)
+	return err == nil && info.IsDir()
 }
 
 func findSkill(t *testing.T, name string) (AgentSkillData, bool) {

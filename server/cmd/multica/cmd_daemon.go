@@ -69,6 +69,23 @@ var daemonLogsCmd = &cobra.Command{
 	RunE:  runDaemonLogs,
 }
 
+func newShutdownContext(parent context.Context, signals <-chan os.Signal, stopSignals func()) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancelCause(parent)
+	go func() {
+		select {
+		case sig := <-signals:
+			if sig != nil {
+				cancel(fmt.Errorf("signal %s", sig))
+			}
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, func() {
+		stopSignals()
+		cancel(context.Canceled)
+	}
+}
+
 var daemonDiskUsageCmd = &cobra.Command{
 	Use:   "disk-usage",
 	Short: "Show daemon workspace disk usage by task or workspace",
@@ -950,7 +967,7 @@ func runDaemonRestart(cmd *cobra.Command, args []string) error {
 		pid, _ := health["pid"].(float64)
 		if pid > 0 {
 			fmt.Fprintf(os.Stderr, "Stopping daemon (pid %d)...\n", int(pid))
-			if err := requestDaemonShutdown(healthPort); err != nil {
+			if err := requestDaemonShutdown(healthPort, "daemon restart command"); err != nil {
 				if p, perr := os.FindProcess(int(pid)); perr == nil {
 					_ = p.Kill()
 				}
@@ -1008,7 +1025,7 @@ func runDaemonStop(cmd *cobra.Command, _ []string) error {
 	// GenerateConsoleCtrlEvent can't reach it; HTTP works on both
 	// platforms and triggers the same context-cancel path the daemon
 	// already uses for self-restart.
-	if err := requestDaemonShutdown(healthPort); err != nil {
+	if err := requestDaemonShutdown(healthPort, "daemon stop command"); err != nil {
 		fmt.Fprintf(os.Stderr, "Graceful shutdown request failed: %v — falling back to forced kill.\n", err)
 		if kerr := process.Kill(); kerr != nil {
 			return fmt.Errorf("kill daemon (pid %d): %w", int(pid), kerr)
@@ -1037,12 +1054,13 @@ func runDaemonStop(cmd *cobra.Command, _ []string) error {
 // requestDaemonShutdown POSTs to the daemon's /shutdown endpoint to ask it
 // to exit gracefully. Returns an error if the request could not be delivered
 // (network error, non-2xx status, or the endpoint predates this change).
-func requestDaemonShutdown(healthPort int) error {
+func requestDaemonShutdown(healthPort int, reason string) error {
 	url := fmt.Sprintf("http://127.0.0.1:%d/shutdown", healthPort)
 	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		return err
 	}
+	req.Header.Set("X-Multica-Shutdown-Reason", reason)
 	client := &http.Client{Timeout: 2 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {

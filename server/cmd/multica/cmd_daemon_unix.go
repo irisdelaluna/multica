@@ -27,7 +27,9 @@ func daemonSysProcAttr(_ bool) *syscall.SysProcAttr {
 func isAccessDeniedSpawnErr(_ error) bool { return false }
 
 func notifyShutdownContext(parent context.Context) (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	return newShutdownContext(parent, signals, func() { signal.Stop(signals) })
 }
 
 // repointStdioToErrLog is a no-op on Unix. The rotating daemon.log writer

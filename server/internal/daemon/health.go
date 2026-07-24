@@ -126,6 +126,11 @@ func (d *Daemon) shutdownHandler() http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "shutting down"})
+		reason := strings.TrimSpace(r.Header.Get("X-Multica-Shutdown-Reason"))
+		if reason == "" {
+			reason = "direct /shutdown request"
+		}
+		d.logger.Info("daemon shutdown requested", "cause", reason, "remote_addr", r.RemoteAddr)
 		if d.cancelFunc != nil {
 			// Cancel asynchronously so the response flushes first; otherwise
 			// srv.Close() races with the writer.

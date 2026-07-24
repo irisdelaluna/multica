@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"log/slog"
@@ -140,10 +141,15 @@ func TestShutdownHandlerPostCancelsDaemonContext(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	d := &Daemon{cancelFunc: cancel}
+	var logs bytes.Buffer
+	d := &Daemon{
+		cancelFunc: cancel,
+		logger:     slog.New(slog.NewTextHandler(&logs, nil)),
+	}
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/shutdown", nil)
+	req.Header.Set("X-Multica-Shutdown-Reason", "daemon stop command")
 	d.shutdownHandler().ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -154,6 +160,9 @@ func TestShutdownHandlerPostCancelsDaemonContext(t *testing.T) {
 	case <-ctx.Done():
 	case <-time.After(time.Second):
 		t.Fatal("daemon context was not cancelled after POST /shutdown")
+	}
+	if got := logs.String(); !strings.Contains(got, `cause="daemon stop command"`) {
+		t.Fatalf("shutdown log = %q, want command cause", got)
 	}
 }
 

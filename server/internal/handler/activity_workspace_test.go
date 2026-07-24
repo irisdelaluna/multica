@@ -74,12 +74,13 @@ func TestListWorkspaceTimeline_MergesActivitiesAndTasks(t *testing.T) {
 	// Newer task run.
 	agentID := createHandlerTestAgent(t, "Workspace Timeline Test Agent", nil)
 	newer := time.Now().UTC()
+	startedAt := newer.Add(-45 * time.Second)
 	var taskID string
 	if err := testPool.QueryRow(ctx, `
-		INSERT INTO agent_task_queue (agent_id, issue_id, status, priority, context, runtime_id, created_at)
-		VALUES ($1, $2, 'completed', 1, '{}'::jsonb, $3, $4)
+		INSERT INTO agent_task_queue (agent_id, issue_id, status, priority, context, runtime_id, created_at, started_at)
+		VALUES ($1, $2, 'completed', 1, '{}'::jsonb, $3, $4, $5)
 		RETURNING id
-	`, agentID, issueID, handlerTestRuntimeID(t), newer).Scan(&taskID); err != nil {
+	`, agentID, issueID, handlerTestRuntimeID(t), newer, startedAt).Scan(&taskID); err != nil {
 		t.Fatalf("seed task: %v", err)
 	}
 
@@ -126,6 +127,13 @@ func TestListWorkspaceTimeline_MergesActivitiesAndTasks(t *testing.T) {
 	}
 	if gotTask.Status != "completed" {
 		t.Errorf("task status = %s, want completed", gotTask.Status)
+	}
+	// started_at is threaded through so the timeline can show how long a task
+	// has been running (created_at reflects enqueue time, not run time). A
+	// task that never started (queued/dispatched) omits the field; this row
+	// was seeded with one, so it must be present and parse as the seeded run.
+	if gotTask.StartedAt == "" {
+		t.Errorf("task started_at empty; want seeded RFC3339 timestamp")
 	}
 	if gotTask.AgentName != "Workspace Timeline Test Agent" {
 		t.Errorf("task agent_name = %q, want seeded name", gotTask.AgentName)

@@ -153,3 +153,61 @@ export function bareTaskId(entry: WorkspaceTimelineEntry): string | null {
     : entry.id;
   return isTaskMessageTaskId(raw) ? raw : null;
 }
+
+// "In flight" = work the fleet has not finished — the broad reading of "what
+// is running right now". A task queued behind another is still in flight from
+// an operator's point of view, so queued/dispatched/waiting_local_directory
+// join running. Deferred tasks are excluded: they are scheduled to fire later
+// (fire_at), not actively awaiting execution, so surfacing them answers "what
+// might run" rather than "what is running". Terminal states (completed /
+// failed / cancelled) are obviously out. Non-task entries are never in flight.
+const IN_FLIGHT_STATUSES = new Set([
+  "running",
+  "queued",
+  "dispatched",
+  "waiting_local_directory",
+]);
+
+export function isInFlight(entry: WorkspaceTimelineEntry): boolean {
+  return entry.kind === "task" && !!entry.status && IN_FLIGHT_STATUSES.has(entry.status);
+}
+
+/** A running task is the one entry whose state is still changing, so "how long
+ *  has it been running" is the metric that matters. created_at reflects enqueue
+ *  time (which includes time parked in the queue); started_at is the moment the
+ *  daemon began executing. Returns null when the task never started. */
+export function runningSince(entry: WorkspaceTimelineEntry): number | null {
+  if (entry.status !== "running" || !entry.started_at) return null;
+  const ms = new Date(entry.started_at).getTime();
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Compact wall-clock duration for a live running timer ("12s", "2m 04s",
+ * "1h 30m"). Mirrors the agent activity tab's formatDurationMs so a running
+ * row reads on the same rhythm as the completed-row durations elsewhere.
+ * Seconds are padded inside the minute form so a column of timers stays
+ * visually aligned as it ticks.
+ */
+export function formatRunningDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "0s";
+  // Floor once, before decomposition, so one rounding policy carries across
+  // every unit. Rounding the seconds inside each bucket independently can
+  // emit an impossible "60s" field at a unit boundary — e.g. 59.6s → "60s",
+  // or 1m59.6s → "1m 60s". Because the one-second tick is not aligned to a
+  // task's fractional start time, that boundary is reached during ordinary
+  // ticking, so the carry has to happen at decomposition, not after.
+  const totalSeconds = Math.floor(ms / 1000);
+  if (totalSeconds < 60) {
+    // A just-started task (< 1s) still reads "1s" rather than flashing "0s".
+    return `${Math.max(1, totalSeconds)}s`;
+  }
+  if (totalSeconds < 60 * 60) {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m}m ${String(s).padStart(2, "0")}s`;
+  }
+  const h = Math.floor(totalSeconds / (60 * 60));
+  const m = Math.floor((totalSeconds % (60 * 60)) / 60);
+  return `${h}h ${m}m`;
+}

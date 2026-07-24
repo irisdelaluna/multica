@@ -41,6 +41,11 @@ export interface WorkspaceTimelineEntry {
 
   // Task-only fields.
   status?: string;
+  // When the daemon began executing the task (the "running" transition).
+  // Absent for queued/dispatched rows that have not started yet. Surfaced so
+  // the timeline can show how long a task has actually been running,
+  // independent of when it was enqueued (created_at = enqueue time).
+  started_at?: string;
   agent_name?: string;
   agent_avatar_url?: string;
   error?: string | null;

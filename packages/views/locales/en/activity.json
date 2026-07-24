@@ -10,7 +10,8 @@
     "project": "Project",
     "any_agent": "Any agent",
     "any_project": "Any project",
-    "search": "Search events"
+    "search": "Search events",
+    "in_flight": "In flight"
   },
   "state": {
     "empty_title": "Nothing happening yet",
@@ -21,6 +22,7 @@
   },
   "live": "Live",
   "refresh": "Refresh",
+  "running_for": "Running {{duration}}",
   "kind_task": "task",
   "commented_on": "commented on",
   "system_actor": "System",

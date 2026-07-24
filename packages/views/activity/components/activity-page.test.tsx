@@ -52,6 +52,9 @@ function baseEntry(
 }
 
 describe("TimelineRow issue reference", () => {
+  // TimelineRow also takes the ticking clock for the live running timer; none
+  // of the rows below are running, so a fixed `now` is inert there.
+  const NOW = 0;
   it("renders the issue through the mention chip, carrying the identifier as the fallback label", () => {
     const entry = baseEntry({
       kind: "activity",
@@ -61,7 +64,7 @@ describe("TimelineRow issue reference", () => {
       issue_title: "Timeline entries show issue codes instead of what the work is",
       details: { from: "todo", to: "in_progress" },
     });
-    render(<TimelineRow entry={entry} actorName="Alice" timeAgo={() => "ago"} />);
+    render(<TimelineRow entry={entry} actorName="Alice" timeAgo={() => "ago"} now={NOW} />);
 
     const chip = screen.getByTestId("issue-mention");
     expect(chip).toHaveAttribute("data-issue-id", "issue-72");
@@ -80,7 +83,7 @@ describe("TimelineRow issue reference", () => {
       issue_title: "Timeline entries show issue codes instead of what the work is",
     });
     render(
-      <TimelineRow entry={entry} actorName="Red Builder" timeAgo={() => "ago"} />,
+      <TimelineRow entry={entry} actorName="Red Builder" timeAgo={() => "ago"} now={NOW} />,
     );
 
     expect(screen.getByTestId("issue-mention")).toHaveAttribute(
@@ -96,7 +99,7 @@ describe("TimelineRow issue reference", () => {
       issue_id: "abcdefghijk",
       issue_identifier: "",
     });
-    render(<TimelineRow entry={entry} actorName="Alice" timeAgo={() => "ago"} />);
+    render(<TimelineRow entry={entry} actorName="Alice" timeAgo={() => "ago"} now={NOW} />);
 
     expect(screen.getByTestId("issue-mention")).toHaveAttribute(
       "data-fallback",
@@ -106,7 +109,7 @@ describe("TimelineRow issue reference", () => {
 
   it("renders no chip when the entry carries no issue", () => {
     const entry = baseEntry({ kind: "activity", action: "issue_created" });
-    render(<TimelineRow entry={entry} actorName="Alice" timeAgo={() => "ago"} />);
+    render(<TimelineRow entry={entry} actorName="Alice" timeAgo={() => "ago"} now={NOW} />);
 
     expect(screen.queryByTestId("issue-mention")).toBeNull();
   });

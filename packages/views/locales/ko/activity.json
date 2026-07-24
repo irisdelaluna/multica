@@ -10,7 +10,8 @@
     "project": "프로젝트",
     "any_agent": "모든 에이전트",
     "any_project": "모든 프로젝트",
-    "search": "이벤트 검색"
+    "search": "이벤트 검색",
+    "in_flight": "진행 중"
   },
   "state": {
     "empty_title": "아직 활동이 없습니다",
@@ -21,6 +22,7 @@
   },
   "live": "실시간",
   "refresh": "새로고침",
+  "running_for": "실행 중 {{duration}}",
   "kind_task": "작업",
   "commented_on": "에 댓글을 남겼습니다",
   "system_actor": "시스템",

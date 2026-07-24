@@ -333,6 +333,12 @@ type WorkspaceTimelineEntry struct {
 
 	// Task-only fields.
 	Status         string  `json:"status,omitempty"`
+	// StartedAt is when the daemon began executing the task (the
+	// "running" transition). Absent for queued/dispatched rows that have
+	// not started yet. Surfaced so the timeline can show how long a task
+	// has actually been running, independent of when it was enqueued
+	// (created_at reflects enqueue time, not run time).
+	StartedAt      string  `json:"started_at,omitempty"`
 	AgentName      string  `json:"agent_name,omitempty"`
 	AgentAvatarURL string  `json:"agent_avatar_url,omitempty"`
 	Error          *string `json:"error,omitempty"`
@@ -463,6 +469,7 @@ func workspaceTaskToEntry(t db.ListWorkspaceTasksForWorkspaceRow, prefix string)
 		ActorType:      "agent",
 		ActorID:        uuidToString(t.AgentID),
 		Status:         t.Status,
+		StartedAt:      timestampToString(t.StartedAt),
 		AgentName:      t.AgentName,
 		Error:          textToPtr(t.Error),
 		TriggerSummary: textToPtr(t.TriggerSummary),

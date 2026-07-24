@@ -10,7 +10,8 @@
     "project": "项目",
     "any_agent": "所有智能体",
     "any_project": "所有项目",
-    "search": "搜索事件"
+    "search": "搜索事件",
+    "in_flight": "进行中"
   },
   "state": {
     "empty_title": "暂无动态",
@@ -21,6 +22,7 @@
   },
   "live": "实时",
   "refresh": "刷新",
+  "running_for": "运行中 {{duration}}",
   "kind_task": "任务",
   "commented_on": "评论了",
   "system_actor": "系统",

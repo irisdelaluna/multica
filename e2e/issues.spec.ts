@@ -111,10 +111,20 @@ test.describe("Issues", () => {
     const suffix = Date.now();
     const todayTitle = `E2E Date Custom Today ${suffix}`;
     const oldTitle = `E2E Date Custom Old ${suffix}`;
-    await api.createIssue(todayTitle);
+    const { todayDataDay, todayTimestamp } = await page.evaluate(() => {
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      return {
+        todayDataDay: today.toLocaleDateString(),
+        todayTimestamp: today.toISOString(),
+      };
+    });
+    const todayIssue = await api.createIssue(todayTitle);
     const oldIssue = await api.createIssue(oldTitle);
-    const oldDate = new Date();
+    const todayDate = new Date(todayTimestamp);
+    const oldDate = new Date(todayDate);
     oldDate.setDate(oldDate.getDate() - 8);
+    await setIssueTimestamps(todayIssue.id, { createdAt: todayDate });
     await setIssueTimestamps(oldIssue.id, { createdAt: oldDate });
 
     await reloadAppPage(page);
@@ -126,7 +136,6 @@ test.describe("Issues", () => {
     const customDateButton = page.getByRole("button", { name: "Custom date or range" });
     await expect(customDateButton).toBeVisible();
     await customDateButton.click();
-    const todayDataDay = await page.evaluate(() => new Date().toLocaleDateString());
     await page.locator(`[data-day="${todayDataDay}"]`).click();
     await page.getByRole("button", { name: "Apply" }).click();
     await expect(page.getByText(todayTitle)).toBeVisible();

@@ -71,6 +71,11 @@ sequenceDiagram
         Task->>DB: running -> failed
         Task->>Task: Classify failure, optionally enqueue retry
         Task->>Events: task:failed
+    else Provider reaches the configured tool-call limit
+        Daemon->>Daemon: Warn at limit - 10, then stop the subprocess at limit
+        Daemon->>Task: POST /tasks/{id}/complete with handoff comment
+        Task->>DB: running -> completed
+        Task->>Events: task:completed
     else Server-side cancellation is observed
         Daemon->>Daemon: Stop process and drain transcript
         Daemon->>Task: POST /tasks/{id}/cancel-ack
@@ -187,6 +192,13 @@ waiting-local-directory, progress, session pinning, usage, transcript batches,
 complete/fail, status polling, and cancellation acknowledgement use authenticated
 daemon HTTP endpoints. Workspace WebSocket events then expose their results to
 clients.
+
+The daemon also counts streamed `tool_use` messages. By default it logs a
+warning at 40 calls and force-stops the task at 50. The terminal callback is a
+completion, not a failure/retry: it preserves any partial output and adds an
+instruction to inspect the persisted transcript and split the remainder.
+`MULTICA_AGENT_MAX_TOOL_CALLS=0` disables the cap; a positive value replaces
+50.
 
 ## Claim payload and security boundary
 

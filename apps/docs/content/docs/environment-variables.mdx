@@ -186,6 +186,7 @@ The daemon runs on the user's local machine, and its config is read from local e
 | `MULTICA_DAEMON_HEARTBEAT_INTERVAL` | `15s` | Heartbeat interval |
 | `MULTICA_DAEMON_POLL_INTERVAL` | `3s` | Task polling interval |
 | `MULTICA_DAEMON_MAX_CONCURRENT_TASKS` | `20` | Max concurrent tasks |
+| `MULTICA_AGENT_MAX_TOOL_CALLS` | `50` | Warn ten calls before this per-task limit, then stop with a completion handoff at the limit. `0` disables the cap |
 | `MULTICA_AGENT_TIMEOUT` | `0` | Absolute wall-clock cap per agent run. `0` disables the cap and lets the inactivity watchdogs alone bound long runs. Set a positive Go duration when you want a hard resource/cost ceiling |
 | `MULTICA_CODEX_SEMANTIC_INACTIVITY_TIMEOUT` | `10m` | Codex-specific inactivity watchdog window |
 | `MULTICA_CODEX_HANDSHAKE_TIMEOUT` | `30s` | Codex `app-server` startup RPC timeout |

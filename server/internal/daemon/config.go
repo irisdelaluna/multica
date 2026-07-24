@@ -21,6 +21,10 @@ const (
 	DefaultServerURL         = "ws://localhost:8080/ws"
 	DefaultPollInterval      = 30 * time.Second
 	DefaultHeartbeatInterval = 15 * time.Second
+	// DefaultAgentMaxToolCalls bounds a task by observable work rather than
+	// model activity. The daemon warns ten calls before the limit and
+	// force-stops at the limit. Set MULTICA_AGENT_MAX_TOOL_CALLS=0 to disable.
+	DefaultAgentMaxToolCalls = 50
 	// DefaultAgentTimeout is the optional absolute wall-clock cap on a single
 	// agent run. 0 = no cap: a run is bounded only by the inactivity watchdogs
 	// (DefaultAgentIdleWatchdog / DefaultAgentToolWatchdog), so a session that keeps emitting events is
@@ -107,6 +111,7 @@ type Config struct {
 	AutoUpdateCheckInterval        time.Duration         // how often the auto-update loop polls for a new release (default: 6h)
 	PollInterval                   time.Duration
 	HeartbeatInterval              time.Duration
+	AgentMaxToolCalls              int
 	AgentTimeout                   time.Duration
 	CodexSemanticInactivityTimeout time.Duration
 	CodexHandshakeTimeout          time.Duration
@@ -400,6 +405,14 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		agentTimeout = *overrides.AgentTimeout
 	}
 
+	agentMaxToolCalls, err := intFromEnv("MULTICA_AGENT_MAX_TOOL_CALLS", DefaultAgentMaxToolCalls)
+	if err != nil {
+		return Config{}, err
+	}
+	if agentMaxToolCalls < 0 {
+		return Config{}, fmt.Errorf("MULTICA_AGENT_MAX_TOOL_CALLS must be non-negative")
+	}
+
 	codexSemanticInactivityTimeout, err := durationFromEnv("MULTICA_CODEX_SEMANTIC_INACTIVITY_TIMEOUT", DefaultCodexSemanticInactivityTimeout)
 	if err != nil {
 		return Config{}, err
@@ -593,6 +606,7 @@ func LoadConfig(overrides Overrides) (Config, error) {
 		MaxConcurrentTasks:             maxConcurrentTasks,
 		PollInterval:                   pollInterval,
 		HeartbeatInterval:              heartbeatInterval,
+		AgentMaxToolCalls:              agentMaxToolCalls,
 		AgentTimeout:                   agentTimeout,
 		CodexSemanticInactivityTimeout: codexSemanticInactivityTimeout,
 		CodexHandshakeTimeout:          codexHandshakeTimeout,

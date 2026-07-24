@@ -1024,6 +1024,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		"health_port", d.cfg.HealthPort,
 		"poll_interval", d.cfg.PollInterval,
 		"heartbeat_interval", d.cfg.HeartbeatInterval,
+		"agent_max_tool_calls", d.cfg.AgentMaxToolCalls,
 		"agent_timeout", d.cfg.AgentTimeout,
 		"idle_watchdog", d.cfg.AgentIdleWatchdog,
 		"opencode_idle_watchdog", d.cfg.OpenCodeIdleWatchdog,
@@ -4872,6 +4873,19 @@ func (d *Daemon) runTask(ctx context.Context, task Task, provider string, slot i
 			FailureReason: "idle_watchdog",
 			Usage:         usageEntries,
 		}, nil
+	case "tool_limit":
+		comment := toolLimitReason(d.cfg.AgentMaxToolCalls)
+		if strings.TrimSpace(result.Output) != "" {
+			comment = strings.TrimSpace(result.Output) + "\n\n" + comment
+		}
+		return TaskResult{
+			Status:    "completed",
+			Comment:   comment,
+			SessionID: result.SessionID,
+			WorkDir:   env.WorkDir,
+			EnvRoot:   env.RootDir,
+			Usage:     usageEntries,
+		}, nil
 	case "cancelled":
 		// Server cancelled the task (e.g. issue reassignment, user cancel).
 		// handleTask's cancelledByPoll branch already discards this result,
@@ -5069,6 +5083,7 @@ func (d *Daemon) executeAndDrain(ctx context.Context, backend agent.Backend, pro
 	defer drainCancel()
 
 	var toolCount atomic.Int32
+	var toolLimitFired atomic.Bool
 	// lastActivityAt records (as unix nanos) when the drain loop most
 	// recently received a message from the backend. The idle watchdog
 	// reads this to decide whether the agent has gone silent for too long.
@@ -5198,6 +5213,23 @@ func (d *Daemon) executeAndDrain(ctx context.Context, backend agent.Backend, pro
 					n := toolCount.Add(1)
 					inFlightTools.Add(1)
 					taskLog.Info(fmt.Sprintf("tool #%d: %s", n, msg.Tool))
+					if limit := d.cfg.AgentMaxToolCalls; limit > 0 {
+						if warningAt := limit - 10; warningAt > 0 && int(n) == warningAt {
+							taskLog.Warn("agent approaching tool-call limit",
+								"task", shortID(taskID),
+								"tools", n,
+								"limit", limit,
+							)
+						}
+						if int(n) >= limit && toolLimitFired.CompareAndSwap(false, true) {
+							taskLog.Warn("agent reached tool-call limit; force-stopping run",
+								"task", shortID(taskID),
+								"tools", n,
+								"limit", limit,
+							)
+							agentCancel()
+						}
+					}
 					if msg.CallID != "" {
 						mu.Lock()
 						callIDToTool[msg.CallID] = msg.Tool
@@ -5310,7 +5342,10 @@ func (d *Daemon) executeAndDrain(ctx context.Context, backend agent.Backend, pro
 	select {
 	case result := <-session.Result:
 		waitForDrain()
-		if idleWatchdogFired.Load() {
+		if toolLimitFired.Load() {
+			result.Status = "tool_limit"
+			result.Error = toolLimitReason(d.cfg.AgentMaxToolCalls)
+		} else if idleWatchdogFired.Load() {
 			// The backend's wait goroutine (e.g. claude.go) translates the
 			// SIGKILL we delivered via agentCancel into Status="aborted".
 			// Re-tag it as "idle_watchdog" so runTask routes the
@@ -5332,6 +5367,12 @@ func (d *Daemon) executeAndDrain(ctx context.Context, backend agent.Backend, pro
 		// context.Canceled. Check this BEFORE the generic cancelled/timeout
 		// classifiers so a watchdog-induced stop isn't misreported as
 		// "task cancelled by server".
+		if toolLimitFired.Load() {
+			return agent.Result{
+				Status: "tool_limit",
+				Error:  toolLimitReason(d.cfg.AgentMaxToolCalls),
+			}, toolCount.Load(), nil
+		}
 		if idleWatchdogFired.Load() {
 			return agent.Result{
 				Status: "idle_watchdog",
@@ -5354,6 +5395,10 @@ func (d *Daemon) executeAndDrain(ctx context.Context, backend agent.Backend, pro
 			Error:  "agent did not produce result within drain timeout",
 		}, toolCount.Load(), nil
 	}
+}
+
+func toolLimitReason(limit int) string {
+	return fmt.Sprintf("agent reached the configured limit of %d tool calls; force-stopped. Inspect the transcript and split the remaining work into follow-up issues", limit)
 }
 
 // idleWatchdogReason formats the human-facing explanation surfaced on

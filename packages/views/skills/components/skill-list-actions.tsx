@@ -523,6 +523,8 @@ export function SkillRowActions({
   const [addOpen, setAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
+  if (row.skill.source === "builtin") return null;
+
   return (
     <span
       onClick={(e) => e.stopPropagation()}

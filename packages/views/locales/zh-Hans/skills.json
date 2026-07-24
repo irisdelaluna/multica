@@ -54,6 +54,7 @@
     "updated": "更新时间",
     "created": "创建时间",
     "lock_tooltip": "只读——只有创建者或管理员能编辑",
+    "builtin_tooltip": "内置 skill——始终可用且只读",
     "unused": "— 未使用",
     "by_creator": "由 {{name}} 创建",
     "source_manual": "手动创建",
@@ -62,7 +63,8 @@
     "source_runtime_unknown": "来自某个运行时",
     "source_clawhub": "来自 ClawHub",
     "source_skills_sh": "来自 Skills.sh",
-    "source_github": "来自 GitHub"
+    "source_github": "来自 GitHub",
+    "source_builtin": "内置"
   },
   "actions": {
     "row_menu": "操作",
@@ -122,6 +124,7 @@
       "origin_clawhub": "导入自 · ClawHub",
       "origin_skills_sh": "导入自 · Skills.sh",
       "origin_github": "导入自 · GitHub",
+      "origin_builtin": "内置 · Multica",
       "origin_workspace": "工作区",
       "updated_label": "{{when}}更新",
       "by_creator": "由 {{name}}"
@@ -149,9 +152,11 @@
       "permissions_owner": "你可以编辑和删除这个 skill。修改在智能体下次运行时生效。",
       "permissions_locked_creator": "只有创建者（{{name}}）或工作区管理员能编辑这个 skill。",
       "permissions_locked": "只有创建者或工作区管理员能编辑这个 skill。",
+      "permissions_builtin": "由 Multica 提供，所有智能体都可以使用，且始终只读。",
       "used_by_empty": "还未分配给任何智能体。打开某个智能体的 Skills 标签页进行分配。"
     },
     "origin_card": {
+      "builtin": "Multica 内置",
       "imported_runtime": "从本地运行时导入",
       "imported_clawhub": "从 ClawHub 导入",
       "imported_skills_sh": "从 Skills.sh 导入",

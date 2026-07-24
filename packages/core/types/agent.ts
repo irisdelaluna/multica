@@ -745,6 +745,10 @@ export interface SkillSummary {
   name: string;
   description: string;
   config: Record<string, unknown>;
+  /** Server-owned source. Older servers omit this, which means workspace. */
+  source?: "workspace" | "builtin";
+  /** Built-ins are immutable. Older servers omit this, which means false. */
+  read_only?: boolean;
   created_by: string | null;
   created_at: string;
   updated_at: string;

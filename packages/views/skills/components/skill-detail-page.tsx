@@ -203,13 +203,15 @@ function OriginSidebarCard({
 
   const isRuntime = origin.type === "runtime_local";
   const label =
-    origin.type === "runtime_local"
-      ? t(($) => $.detail.origin_card.imported_runtime)
-      : origin.type === "clawhub"
-        ? t(($) => $.detail.origin_card.imported_clawhub)
-        : origin.type === "github"
-          ? t(($) => $.detail.origin_card.imported_github)
-          : t(($) => $.detail.origin_card.imported_skills_sh);
+    origin.type === "builtin"
+      ? t(($) => $.detail.origin_card.builtin)
+      : origin.type === "runtime_local"
+        ? t(($) => $.detail.origin_card.imported_runtime)
+        : origin.type === "clawhub"
+          ? t(($) => $.detail.origin_card.imported_clawhub)
+          : origin.type === "github"
+            ? t(($) => $.detail.origin_card.imported_github)
+            : t(($) => $.detail.origin_card.imported_skills_sh);
 
   return (
     <div className="rounded-md border bg-muted/30 p-3">
@@ -278,6 +280,7 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
     [agents],
   );
 
+  const isBuiltin = skill?.source === "builtin";
   const canEdit = useCanEditSkill(skill, wsId);
   const skillPermissions = useSkillPermissions(skill ?? null, wsId);
 
@@ -373,8 +376,8 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   }, [origin, runtimes]);
 
   const skillAgents = useMemo(
-    () => assignments.get(skillId) ?? [],
-    [assignments, skillId],
+    () => (isBuiltin ? agents : assignments.get(skillId) ?? []),
+    [agents, assignments, isBuiltin, skillId],
   );
 
   const fileMap = useMemo(() => {
@@ -560,6 +563,9 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
   // --- Sub-line metadata for the header ---
   const originLabel = (() => {
     if (!origin) return null;
+    if (origin.type === "builtin") {
+      return t(($) => $.detail.subline.origin_builtin);
+    }
     if (origin.type === "runtime_local") {
       return originRuntime
         ? t(($) => $.detail.subline.origin_runtime_named, { name: originRuntime.name })
@@ -720,11 +726,13 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                 className="resize-none text-sm read-only:cursor-default"
               />
             </div>
-            <ResourceLabelPicker
-              resourceType="skill"
-              resourceId={skill.id}
-              canEdit={canEdit}
-            />
+            {!isBuiltin && (
+              <ResourceLabelPicker
+                resourceType="skill"
+                resourceId={skill.id}
+                canEdit={canEdit}
+              />
+            )}
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
               {originLabel && (
                 <span className="inline-flex items-center gap-1">
@@ -736,14 +744,16 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
                   {originLabel}
                 </span>
               )}
-              <span className="inline-flex items-center gap-2">
-                <span aria-hidden>·</span>
-                <span>
-                  {t(($) => $.detail.subline.updated_label, {
-                    when: timeAgo(skill.updated_at),
-                  })}
+              {!isBuiltin && (
+                <span className="inline-flex items-center gap-2">
+                  <span aria-hidden>·</span>
+                  <span>
+                    {t(($) => $.detail.subline.updated_label, {
+                      when: timeAgo(skill.updated_at),
+                    })}
+                  </span>
                 </span>
-              </span>
+              )}
               {creator && (
                 <span className="inline-flex items-center gap-2">
                   <span aria-hidden>·</span>
@@ -840,22 +850,26 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               {t(($) => $.detail.sidebar.metadata)}
             </h3>
             <dl className="space-y-1.5 text-xs">
-              <div className="flex gap-2">
-                <dt className="min-w-20 text-muted-foreground">
-                  {t(($) => $.detail.sidebar.created)}
-                </dt>
-                <dd className="min-w-0 flex-1">
-                  {timeAgo(skill.created_at)}
-                </dd>
-              </div>
-              <div className="flex gap-2">
-                <dt className="min-w-20 text-muted-foreground">
-                  {t(($) => $.detail.sidebar.updated)}
-                </dt>
-                <dd className="min-w-0 flex-1">
-                  {timeAgo(skill.updated_at)}
-                </dd>
-              </div>
+              {!isBuiltin && (
+                <>
+                  <div className="flex gap-2">
+                    <dt className="min-w-20 text-muted-foreground">
+                      {t(($) => $.detail.sidebar.created)}
+                    </dt>
+                    <dd className="min-w-0 flex-1">
+                      {timeAgo(skill.created_at)}
+                    </dd>
+                  </div>
+                  <div className="flex gap-2">
+                    <dt className="min-w-20 text-muted-foreground">
+                      {t(($) => $.detail.sidebar.updated)}
+                    </dt>
+                    <dd className="min-w-0 flex-1">
+                      {timeAgo(skill.updated_at)}
+                    </dd>
+                  </div>
+                </>
+              )}
               {creator && (
                 <div className="flex gap-2">
                   <dt className="min-w-20 text-muted-foreground">
@@ -898,15 +912,17 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               <h3 className="min-w-0 truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 {t(($) => $.detail.sidebar.used_by, { count: skillAgents.length })}
               </h3>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={() => setShowAddToAgents(true)}
-                className="h-6 shrink-0 gap-1"
-              >
-                <UserPlus className="h-3 w-3" />
-                {t(($) => $.actions.add_to_agent)}
-              </Button>
+              {!isBuiltin && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setShowAddToAgents(true)}
+                  className="h-6 shrink-0 gap-1"
+                >
+                  <UserPlus className="h-3 w-3" />
+                  {t(($) => $.actions.add_to_agent)}
+                </Button>
+              )}
             </div>
             <UsedBySection agents={skillAgents} />
           </div>
@@ -916,11 +932,13 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
               {t(($) => $.detail.sidebar.permissions)}
             </h3>
             <p className="text-xs leading-relaxed text-muted-foreground">
-              {canEdit
-                ? t(($) => $.detail.sidebar.permissions_owner)
-                : creator
-                  ? t(($) => $.detail.sidebar.permissions_locked_creator, { name: creator.name })
-                  : t(($) => $.detail.sidebar.permissions_locked)}
+              {isBuiltin
+                ? t(($) => $.detail.sidebar.permissions_builtin)
+                : canEdit
+                  ? t(($) => $.detail.sidebar.permissions_owner)
+                  : creator
+                    ? t(($) => $.detail.sidebar.permissions_locked_creator, { name: creator.name })
+                    : t(($) => $.detail.sidebar.permissions_locked)}
             </p>
           </div>
         </aside>
@@ -981,12 +999,14 @@ export function SkillDetailPage({ skillId }: { skillId: string }) {
         </DialogContent>
       </Dialog>
 
-      <AddToAgentDialog
-        skills={[skill]}
-        ctx={actionsCtx}
-        open={showAddToAgents}
-        onOpenChange={setShowAddToAgents}
-      />
+      {!isBuiltin && (
+        <AddToAgentDialog
+          skills={[skill]}
+          ctx={actionsCtx}
+          open={showAddToAgents}
+          onOpenChange={setShowAddToAgents}
+        />
+      )}
     </div>
   );
 }

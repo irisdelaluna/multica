@@ -42,6 +42,7 @@
     "updated": "Updated",
     "created": "Created",
     "lock_tooltip": "Read-only — only creator or admin can edit",
+    "builtin_tooltip": "Built-in skill — always available and read-only",
     "unused": "— unused",
     "by_creator": "by {{name}}",
     "source_manual": "Created manually",
@@ -50,7 +51,8 @@
     "source_runtime_unknown": "From a runtime",
     "source_clawhub": "From ClawHub",
     "source_skills_sh": "From Skills.sh",
-    "source_github": "From GitHub"
+    "source_github": "From GitHub",
+    "source_builtin": "Built-in"
   },
   "actions": {
     "row_menu": "Actions",
@@ -115,6 +117,7 @@
       "origin_clawhub": "Imported · ClawHub",
       "origin_skills_sh": "Imported · Skills.sh",
       "origin_github": "Imported · GitHub",
+      "origin_builtin": "Built-in · Multica",
       "origin_workspace": "Workspace",
       "updated_label": "Updated {{when}}",
       "by_creator": "by {{name}}"
@@ -143,9 +146,11 @@
       "permissions_owner": "You can edit and delete this skill. Changes take effect on the next agent run.",
       "permissions_locked_creator": "Only the creator ({{name}}) or a workspace admin can edit this skill.",
       "permissions_locked": "Only the creator or a workspace admin can edit this skill.",
+      "permissions_builtin": "Supplied by Multica, available to every agent, and always read-only.",
       "used_by_empty": "Not assigned to any agent yet. Open an agent's Skills tab to assign."
     },
     "origin_card": {
+      "builtin": "Built into Multica",
       "imported_runtime": "Imported from local runtime",
       "imported_clawhub": "Imported from ClawHub",
       "imported_skills_sh": "Imported from Skills.sh",

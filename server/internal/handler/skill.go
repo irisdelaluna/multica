@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/multica-ai/multica/server/internal/service"
 	skillpkg "github.com/multica-ai/multica/server/internal/skill"
 	db "github.com/multica-ai/multica/server/pkg/db/generated"
 	"github.com/multica-ai/multica/server/pkg/protocol"
@@ -47,6 +48,8 @@ type SkillResponse struct {
 	Description string  `json:"description"`
 	Content     string  `json:"content"`
 	Config      any     `json:"config"`
+	Source      string  `json:"source"`
+	ReadOnly    bool    `json:"read_only"`
 	CreatedBy   *string `json:"created_by"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
@@ -63,6 +66,8 @@ type SkillSummaryResponse struct {
 	Name        string  `json:"name"`
 	Description string  `json:"description"`
 	Config      any     `json:"config"`
+	Source      string  `json:"source"`
+	ReadOnly    bool    `json:"read_only"`
 	CreatedBy   *string `json:"created_by"`
 	CreatedAt   string  `json:"created_at"`
 	UpdatedAt   string  `json:"updated_at"`
@@ -136,6 +141,8 @@ func skillToResponse(s db.Skill) SkillResponse {
 		Description: s.Description,
 		Content:     s.Content,
 		Config:      decodeSkillConfig(s.Config),
+		Source:      "workspace",
+		ReadOnly:    false,
 		CreatedBy:   uuidToPtr(s.CreatedBy),
 		CreatedAt:   timestampToString(s.CreatedAt),
 		UpdatedAt:   timestampToString(s.UpdatedAt),
@@ -194,6 +201,8 @@ func skillSummaryToResponse(
 		Name:        name,
 		Description: description,
 		Config:      decodeSkillConfig(config),
+		Source:      "workspace",
+		ReadOnly:    false,
 		CreatedBy:   uuidToPtr(createdBy),
 		CreatedAt:   timestampToString(createdAt),
 		UpdatedAt:   timestampToString(updatedAt),
@@ -209,6 +218,61 @@ func skillFileToResponse(f db.SkillFile) SkillFileResponse {
 		CreatedAt: timestampToString(f.CreatedAt),
 		UpdatedAt: timestampToString(f.UpdatedAt),
 	}
+}
+
+const builtinSkillIDPrefix = "builtin:"
+
+func builtinSkillID(name string) string {
+	return builtinSkillIDPrefix + name
+}
+
+func builtinSkillSummaryToResponse(skill service.AgentSkillData, workspaceID string) SkillSummaryResponse {
+	return SkillSummaryResponse{
+		ID:          builtinSkillID(skill.Name),
+		WorkspaceID: workspaceID,
+		Name:        skill.Name,
+		Description: skill.Description,
+		Config:      map[string]any{},
+		Source:      "builtin",
+		ReadOnly:    true,
+	}
+}
+
+func builtinSkillToResponse(skill service.AgentSkillData, workspaceID string) SkillWithFilesResponse {
+	files := make([]SkillFileResponse, len(skill.Files))
+	for i, file := range skill.Files {
+		files[i] = SkillFileResponse{
+			ID:      builtinSkillID(skill.Name) + ":" + file.Path,
+			SkillID: builtinSkillID(skill.Name),
+			Path:    file.Path,
+			Content: file.Content,
+		}
+	}
+	return SkillWithFilesResponse{
+		SkillResponse: SkillResponse{
+			ID:          builtinSkillID(skill.Name),
+			WorkspaceID: workspaceID,
+			Name:        skill.Name,
+			Description: skill.Description,
+			Content:     skill.Content,
+			Config:      map[string]any{},
+			Source:      "builtin",
+			ReadOnly:    true,
+		},
+		Files: files,
+	}
+}
+
+func (h *Handler) findBuiltinSkill(id string) (service.AgentSkillData, bool) {
+	if !strings.HasPrefix(id, builtinSkillIDPrefix) {
+		return service.AgentSkillData{}, false
+	}
+	for _, skill := range h.TaskService.BuiltinSkills() {
+		if builtinSkillID(skill.Name) == id {
+			return skill, true
+		}
+	}
+	return service.AgentSkillData{}, false
 }
 
 // --- Request structs ---
@@ -293,12 +357,16 @@ func (h *Handler) ListSkills(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := make([]SkillSummaryResponse, len(skills))
-	for i, s := range skills {
-		resp[i] = skillSummaryToResponse(
+	builtinSkills := h.TaskService.BuiltinSkills()
+	resp := make([]SkillSummaryResponse, 0, len(skills)+len(builtinSkills))
+	for _, s := range skills {
+		resp = append(resp, skillSummaryToResponse(
 			s.ID, s.WorkspaceID, s.Name, s.Description, s.Config,
 			s.CreatedBy, s.CreatedAt, s.UpdatedAt,
-		)
+		))
+	}
+	for _, skill := range builtinSkills {
+		resp = append(resp, builtinSkillSummaryToResponse(skill, workspaceID))
 	}
 
 	writeJSON(w, http.StatusOK, resp)
@@ -325,6 +393,10 @@ func (h *Handler) SearchSkills(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetSkill(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if skill, ok := h.findBuiltinSkill(id); ok {
+		writeJSON(w, http.StatusOK, builtinSkillToResponse(skill, h.resolveWorkspaceID(r)))
+		return
+	}
 	skill, ok := h.loadSkillForUser(w, r, id)
 	if !ok {
 		return

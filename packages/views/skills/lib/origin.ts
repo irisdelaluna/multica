@@ -7,7 +7,13 @@ import type { Skill, SkillSummary } from "@multica/core/types";
  * `{ type: "manual" }` for them to keep the consumer code uniform.
  */
 export type OriginInfo = {
-  type: "runtime_local" | "clawhub" | "skills_sh" | "github" | "manual";
+  type:
+    | "builtin"
+    | "runtime_local"
+    | "clawhub"
+    | "skills_sh"
+    | "github"
+    | "manual";
   provider?: string;
   runtime_id?: string;
   source_path?: string;
@@ -15,6 +21,7 @@ export type OriginInfo = {
 };
 
 export function readOrigin(skill: SkillSummary): OriginInfo {
+  if (skill.source === "builtin") return { type: "builtin" };
   const raw = (skill.config?.origin ?? null) as
     | (OriginInfo & Record<string, unknown>)
     | null;

@@ -37,6 +37,8 @@ import type {
   ResourceLabelsResponse,
   SearchIssuesResponse,
   SearchProjectsResponse,
+  Skill,
+  SkillSummary,
   Squad,
   TimelineEntry,
   User,
@@ -45,6 +47,51 @@ import type {
 } from "../types";
 import type { CloudRuntimeNode } from "../runtimes/cloud-runtime";
 import type { CreateFeedbackResponse } from "../feedback/types";
+
+export const SkillSummarySchema = z.object({
+  id: z.string(),
+  workspace_id: z.string(),
+  name: z.string(),
+  description: z.string().default(""),
+  config: z.record(z.string(), z.unknown()).default({}),
+  source: z.enum(["workspace", "builtin"]).default("workspace"),
+  read_only: z.boolean().default(false),
+  created_by: z.string().nullable().default(null),
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
+  enabled: z.boolean().optional(),
+}).loose();
+
+export const SkillFileSchema = z.object({
+  id: z.string(),
+  skill_id: z.string(),
+  path: z.string(),
+  content: z.string(),
+  created_at: z.string().default(""),
+  updated_at: z.string().default(""),
+}).loose();
+
+export const SkillSchema = SkillSummarySchema.extend({
+  content: z.string().default(""),
+  files: z.array(SkillFileSchema).default([]),
+}).loose();
+
+export const SkillSummaryListSchema = z.array(SkillSummarySchema);
+export const EMPTY_SKILL_SUMMARY_LIST: SkillSummary[] = [];
+export const EMPTY_SKILL: Skill = {
+  id: "",
+  workspace_id: "",
+  name: "",
+  description: "",
+  config: {},
+  source: "workspace",
+  read_only: false,
+  created_by: null,
+  created_at: "",
+  updated_at: "",
+  content: "",
+  files: [],
+};
 
 // Label responses are consumed by settings tables and resource pickers. Keep
 // the resource type lenient so newer server scopes do not break older clients,

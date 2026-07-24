@@ -30,6 +30,7 @@ export const SKILL_SORT_DEFAULT_DIRECTION: Record<
 };
 
 export type SkillOriginType =
+  | "builtin"
   | "manual"
   | "runtime_local"
   | "clawhub"

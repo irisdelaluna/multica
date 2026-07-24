@@ -56,6 +56,9 @@ func TestBuiltinSkillsConformToTemplate(t *testing.T) {
 			if desc == "" {
 				t.Errorf("frontmatter is missing a description (the only thing an agent sees when deciding to load the skill)")
 			}
+			if skill.Description != desc {
+				t.Errorf("loaded description does not match frontmatter")
+			}
 			if len(desc) > maxDescriptionChars {
 				t.Errorf("description is %d chars, over the %d cap", len(desc), maxDescriptionChars)
 			}

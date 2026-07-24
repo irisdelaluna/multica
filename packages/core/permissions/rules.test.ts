@@ -292,6 +292,12 @@ describe("canEditSkill / canDeleteSkill", () => {
       true,
     );
   });
+  it("keeps built-in skills read-only for admins", () => {
+    const builtin = { ...skill, source: "builtin", read_only: true } as const;
+    const decision = canEditSkill(builtin, { userId: BOB, role: "admin" });
+    expect(decision.allowed).toBe(false);
+    expect(decision.reason).toBe("read_only");
+  });
   it("allows the creator", () => {
     expect(canEditSkill(skill, { userId: ALICE, role: "member" }).allowed)
       .toBe(true);

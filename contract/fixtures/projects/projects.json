@@ -1,0 +1,110 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/projects",
+    "workspace": true
+  },
+  "schema": "ProjectSchema",
+  "response": {
+    "status": 200,
+    "body": {
+      "projects": [
+        {
+          "created_at": "<timestamp>",
+          "description": "Dual ground: (a) the Haskell outcome — the fork's divergent functionality expressed in Haskell (sidecar services first, strangler option later), and (b) a functional/algebraic/topological interpretation of Multica's functionality at large — denotational reading of the system: issue lifecycles and status transitions as algebras, the event stream as the system's trace/observable, workspace state as the object those events act on, invariants and convergence/drift as the topological layer. The two grounds are dual: the interpretation guides what the Haskell expresses; writing the Haskell sharpens the interpretation. Feeds on Protocol's maps and firehose RFC; staffing candidate: an epistemic squad in the algebraic-workspace style (cartographer/algebraist/counterexample scout/synthesis arbiter). Related board ideas live here; Haskell build-out still starts on Krzysztof's mark.",
+          "done_count": 0,
+          "due_date": null,
+          "icon": "🧮",
+          "id": "<uuid:1>",
+          "issue_count": 3,
+          "lead_id": null,
+          "lead_type": null,
+          "priority": "none",
+          "resource_count": 1,
+          "start_date": null,
+          "status": "planned",
+          "title": "Functionality",
+          "updated_at": "<timestamp>",
+          "workspace_id": "<uuid:2>"
+        },
+        {
+          "created_at": "<timestamp>",
+          "description": "Agents, squads, and skillsets treated as part of the system's emergence — not fixed org structure. Standing experiment: compose different squad architectures (epistemic pipelines, compression lanes, role taxonomies) for different task classes, observe what each composition does well, triangulate, keep what works, let the rest decay. Skillsets (SKILL.md) encode each cognitive function's method so compositions are reproducible. Measurement matters: cycle time, review latency, unaided success rate feed selection. The fleet is a population under selection pressure; this project is where we breed it.",
+          "done_count": 0,
+          "due_date": null,
+          "icon": "🌀",
+          "id": "<uuid:3>",
+          "issue_count": 4,
+          "lead_id": "<uuid:4>",
+          "lead_type": "member",
+          "priority": "none",
+          "resource_count": 0,
+          "start_date": null,
+          "status": "planned",
+          "title": "Emergence",
+          "updated_at": "<timestamp>",
+          "workspace_id": "<uuid:2>"
+        },
+        {
+          "created_at": "<timestamp>",
+          "description": "Muninn LTM woven into Multica (vault: multica). Track: (1) builtin skill multica-muninn-memory teaching recall/remember discipline, (2) flag-gated server-side MCP overlay injection (Composio pattern), (3) event->memory bridge consuming the Protocol firehose (future first Haskell sidecar candidate, on Krzysztof's mark). Agents recall before work and remember outcomes; org memory accretes without human bookkeeping.",
+          "done_count": 1,
+          "due_date": null,
+          "icon": "🐦‍⬛",
+          "id": "<uuid:5>",
+          "issue_count": 3,
+          "lead_id": "<uuid:6>",
+          "lead_type": "agent",
+          "priority": "none",
+          "resource_count": 1,
+          "start_date": null,
+          "status": "planned",
+          "title": "Memory",
+          "updated_at": "<timestamp>",
+          "workspace_id": "<uuid:2>"
+        },
+        {
+          "created_at": "<timestamp>",
+          "description": "Comprehend and freeze Multica's full communication fabric, then make it composable. Scope: (1) REST API + zod contract, (2) WS realtime events, (3) storage: Postgres schema + uploads + redis/cache layers, (4) client cache semantics (React Query invalidation patterns), (5) agent execution pipeline (daemon protocol, task dispatch, runtime sidecars). Deliverables: comprehension maps per area, curated golden fixtures + conformance harness, WS event catalog, pg schema snapshot, and the event-firehose seam design (RFC) as the composability point. The contract IS the protocol; clients are cheap views (AT-Proto/Nostr lateral).",
+          "done_count": 3,
+          "due_date": null,
+          "icon": "📡",
+          "id": "<uuid:7>",
+          "issue_count": 10,
+          "lead_id": "<uuid:8>",
+          "lead_type": "agent",
+          "priority": "none",
+          "resource_count": 1,
+          "start_date": null,
+          "status": "planned",
+          "title": "Protocol",
+          "updated_at": "<timestamp>",
+          "workspace_id": "<uuid:2>"
+        },
+        {
+          "created_at": "<timestamp>",
+          "description": "Incremental transformation of the Multica fork into our semi-compatible superset: contract extraction, Muninn memory integration, SwiftUI + Elm clients, Haskell strangler port. Roadmap LTM lives in the muninn vault 'multica' (root concept: multica-fork-roadmap).",
+          "done_count": 3,
+          "due_date": null,
+          "icon": "☢️",
+          "id": "<uuid:9>",
+          "issue_count": 18,
+          "lead_id": "<uuid:8>",
+          "lead_type": "agent",
+          "priority": "none",
+          "resource_count": 1,
+          "start_date": null,
+          "status": "planned",
+          "title": "Zone Expedition",
+          "updated_at": "<timestamp>",
+          "workspace_id": "<uuid:2>"
+        }
+      ],
+      "total": 5
+    }
+  },
+  "normalized": {
+    "timestamp": 10,
+    "uuid": 14
+  }
+}

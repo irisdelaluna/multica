@@ -1,0 +1,53 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/labels",
+    "workspace": true
+  },
+  "schema": "LabelSchema",
+  "response": {
+    "status": 200,
+    "body": {
+      "labels": [
+        {
+          "color": "#14b8a6",
+          "created_at": "<timestamp>",
+          "description": "",
+          "id": "<uuid:1>",
+          "name": "Composability",
+          "resource_type": "issue",
+          "updated_at": "<timestamp>",
+          "usage_count": 2,
+          "workspace_id": "<uuid:2>"
+        },
+        {
+          "color": "#3b82f6",
+          "created_at": "<timestamp>",
+          "description": "",
+          "id": "<uuid:3>",
+          "name": "Contract",
+          "resource_type": "issue",
+          "updated_at": "<timestamp>",
+          "usage_count": 3,
+          "workspace_id": "<uuid:2>"
+        },
+        {
+          "color": "#f59e0b",
+          "created_at": "<timestamp>",
+          "description": "",
+          "id": "<uuid:4>",
+          "name": "Observability",
+          "resource_type": "issue",
+          "updated_at": "<timestamp>",
+          "usage_count": 2,
+          "workspace_id": "<uuid:2>"
+        }
+      ],
+      "total": 3
+    }
+  },
+  "normalized": {
+    "timestamp": 6,
+    "uuid": 6
+  }
+}

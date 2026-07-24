@@ -1,0 +1,35 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/workspaces",
+    "workspace": false
+  },
+  "schema": "WorkspaceSchema",
+  "response": {
+    "status": 200,
+    "body": [
+      {
+        "avatar_url": null,
+        "context": null,
+        "created_at": "<timestamp>",
+        "description": null,
+        "id": "<uuid:1>",
+        "issue_prefix": "IRI",
+        "name": "Iris",
+        "repos": [
+          {
+            "description": "The fork — iris transformation trunk (default branch iris; main mirrors upstream)",
+            "url": "git@github.com:irisdelaluna/multica.git"
+          }
+        ],
+        "settings": {},
+        "slug": "iris",
+        "updated_at": "<timestamp>"
+      }
+    ]
+  },
+  "normalized": {
+    "timestamp": 2,
+    "uuid": 1
+  }
+}

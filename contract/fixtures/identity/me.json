@@ -1,0 +1,42 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/me",
+    "workspace": false
+  },
+  "schema": "UserSchema",
+  "response": {
+    "status": 200,
+    "body": {
+      "avatar_url": null,
+      "created_at": "<timestamp>",
+      "email": "selenitarium@proton.me",
+      "id": "<uuid:1>",
+      "language": null,
+      "name": "selenitarium",
+      "onboarded_at": "<timestamp>",
+      "onboarding_questionnaire": {
+        "role": "engineer",
+        "role_other": null,
+        "role_skipped": false,
+        "source": [],
+        "source_other": null,
+        "source_skipped": false,
+        "use_case": [
+          "ship_code"
+        ],
+        "use_case_other": null,
+        "use_case_skipped": false,
+        "version": 2
+      },
+      "profile_description": "",
+      "starter_content_state": null,
+      "timezone": null,
+      "updated_at": "<timestamp>"
+    }
+  },
+  "normalized": {
+    "timestamp": 3,
+    "uuid": 1
+  }
+}

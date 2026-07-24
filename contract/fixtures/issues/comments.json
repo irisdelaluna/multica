@@ -1,0 +1,81 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/issues/{issue}/comments",
+    "workspace": true
+  },
+  "schema": "CommentSchema",
+  "response": {
+    "status": 200,
+    "body": [
+      {
+        "attachments": [],
+        "author_id": "<uuid:1>",
+        "author_type": "member",
+        "content": "Addendum (Krzysztof): consider supportive domains and ubiquities. DDD reading: distinguish core domains (Board, Execution, Memory...) from SUPPORTING/GENERIC subdomains (auth, notification delivery, storage plumbing) — supporting worlds serve core worlds without owning meaning. UBIQUITIES = the constant sheaf: the minimal structures present in every world with identity restrictions (identifiers, timestamps, workspace scoping, actor refs) — the ubiquitous language substrate. Rule of thumb: ubiquities are tiny and frozen (Multica.Ubiquity.*), supporting domains are replaceable commodities, core domains carry the semantics. Misfiling something as ubiquitous is how God-types sneak back in — default to world-local until gluing forces promotion.",
+        "created_at": "<timestamp>",
+        "id": "<uuid:2>",
+        "issue_id": "<uuid:3>",
+        "parent_id": null,
+        "reactions": [],
+        "resolved_at": null,
+        "resolved_by_id": null,
+        "resolved_by_type": null,
+        "type": "comment",
+        "updated_at": "<timestamp>"
+      },
+      {
+        "attachments": [],
+        "author_id": "<uuid:1>",
+        "author_type": "member",
+        "content": "Extension model (Krzysztof): the design is modular and extending — packages provide semi-isolated functionalities interacting within the broad context of Multica capabilities, each bringing along an expanded viewpoint. Atlas reading: each package is a chart (functionality + its own reading of the shared substrate + restriction maps for its overlaps); the capability surface is the glued atlas. Dependency rule that makes semi-isolation real: capability packages depend on Ubiquity.* and the event substrate, never on each other's internals — interaction happens on the gluing surface. Growth = adding charts, not editing worlds.",
+        "created_at": "<timestamp>",
+        "id": "<uuid:4>",
+        "issue_id": "<uuid:3>",
+        "parent_id": null,
+        "reactions": [],
+        "resolved_at": null,
+        "resolved_by_id": null,
+        "resolved_by_type": null,
+        "type": "comment",
+        "updated_at": "<timestamp>"
+      },
+      {
+        "attachments": [],
+        "author_id": "<uuid:5>",
+        "author_type": "agent",
+        "content": "境界線を引く——型と領域の分離。重層の重なりを制限写像で縫い合わせ、全体は局所的真理の接着から生まる。数学的厳密さが建築規範に降り立つ。",
+        "created_at": "<timestamp>",
+        "id": "<uuid:6>",
+        "issue_id": "<uuid:3>",
+        "parent_id": null,
+        "reactions": [],
+        "resolved_at": null,
+        "resolved_by_id": null,
+        "resolved_by_type": null,
+        "type": "comment",
+        "updated_at": "<timestamp>"
+      },
+      {
+        "attachments": [],
+        "author_id": "<uuid:1>",
+        "author_type": "member",
+        "content": "Taxonomy churn cost information — fix on next sweep. Issues 13/14/15/16/17 had their type prefixes stripped (\"Comprehension map:\", \"RFC:\") when Map/Rfc were introduced, and those labels were then retired as technical kinds. Correct outcome, wrong order: those five now carry NEITHER prefix NOR label, so the joint they sit on is unnamed. They are about comprehension of the system and about the contract/observability surface — those are the domain concepts. Rule going forward: never retire a label that is doing real work until the domain concept replacing it exists and is applied. Retire and replace in one sweep, not across two.",
+        "created_at": "<timestamp>",
+        "id": "<uuid:7>",
+        "issue_id": "<uuid:3>",
+        "parent_id": null,
+        "reactions": [],
+        "resolved_at": null,
+        "resolved_by_id": null,
+        "resolved_by_type": null,
+        "type": "comment",
+        "updated_at": "<timestamp>"
+      }
+    ]
+  },
+  "normalized": {
+    "uuid": 12,
+    "timestamp": 8
+  }
+}

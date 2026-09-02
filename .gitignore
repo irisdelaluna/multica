@@ -74,3 +74,12 @@ data/
 .kilo
 .idea
 .gstack/
+
+# haskell
+dist-newstyle/
+*.hi
+*.dyn_hi
+*.dyn_o
+cabal.project.local
+cabal.project.local~
+.ghc.environment.*
